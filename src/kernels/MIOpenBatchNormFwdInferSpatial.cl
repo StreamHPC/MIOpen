@@ -49,33 +49,83 @@ MIOpenBatchNormFwdInferSpatialEst(const __global _FLOAT* __restrict in, /* x inp
                                   unsigned int hwStride,
                                   unsigned int batchStride)
 {
-    int xgid = get_global_id(0);
-    int ygid = get_global_id(1);
+    unsigned int xgid = get_global_id(0);
+    unsigned int ygid = get_global_id(1);
 
-    if(xgid >= c)
+#if MIO_LAYOUT_NHWC
+    (void)cStride;
+
+    if(xgid * 4 >= c || ygid >= hw)
         return;
 
     unsigned int index;
+    _FLOAT_PREC4 mean, variance, invVariance;
+    _FLOAT_PREC4 pscale, pbias;
+    _FLOAT_PREC4 inhat;
+    _FLOAT4 value;
 
-    _FLOAT_PREC mean, variance, invVariance;
-    _FLOAT_PREC inhat;
-    _FLOAT_PREC pscale, pbias;
+    mean        = *((const __global _FLOAT_PREC4*)(estimatedMean + xgid * 4));
+    variance    = *((const __global _FLOAT_PREC4*)(estimatedVariance + xgid * 4));
+    pscale      = *((const __global _FLOAT_PREC4*)(scale + xgid * 4));
+    pbias       = *((const __global _FLOAT_PREC4*)(bias + xgid * 4));
+    invVariance = rsqrt(fabs(variance + (_FLOAT_PREC4)epsilon));
 
-    mean        = *(estimatedMean + xgid);
-    variance    = *(estimatedVariance + xgid);
-    pscale      = *(scale + xgid);
-    pbias       = *(bias + xgid);
-    invVariance = rsqrt(fabs(variance + epsilon));
-
-    for(int idx = ygid; idx < hw; idx += get_global_size(1))
+    for(int n = 0; n < batchSize; n++)
     {
-        for(int n = 0; n < batchSize; n++)
-        {
-            index      = (n * batchStride) + (xgid * cStride) + (idx * hwStride);
-            inhat      = (FLOAT2FLOATPREC(*(in + index)) - mean) * invVariance;
-            out[index] = FLOATPREC2FLOAT(mad(pscale, inhat, pbias));
-        }
+        index = (n * batchStride) + (xgid * 4) + (ygid * hwStride);
+        value = *((const __global _FLOAT4*)(in + index));
+
+        inhat = (_FLOAT_PREC4)(FLOAT2FLOATPREC(value.x),
+                               FLOAT2FLOATPREC(value.y),
+                               FLOAT2FLOATPREC(value.z),
+                               FLOAT2FLOATPREC(value.w));
+        inhat = (inhat - mean) * invVariance;
+        inhat = mad(pscale, inhat, pbias);
+        value = (_FLOAT4)(FLOATPREC2FLOAT(inhat.x),
+                          FLOATPREC2FLOAT(inhat.y),
+                          FLOATPREC2FLOAT(inhat.z),
+                          FLOATPREC2FLOAT(inhat.w));
+
+        *((__global _FLOAT4*)(out + index)) = value;
     }
+#else
+    (void)hwStride;
+
+    if(xgid >= c || ygid * 4 >= hw)
+        return;
+
+    unsigned int index;
+    _FLOAT_PREC mean, variance, invVariance;
+    _FLOAT_PREC pscale, pbias;
+    _FLOAT_PREC4 inhat;
+    _FLOAT4 value;
+
+    mean        = *((const __global _FLOAT_PREC*)(estimatedMean + xgid));
+    variance    = *((const __global _FLOAT_PREC*)(estimatedVariance + xgid));
+    pscale      = *((const __global _FLOAT_PREC*)(scale + xgid));
+    pbias       = *((const __global _FLOAT_PREC*)(bias + xgid));
+    invVariance = rsqrt(fabs(variance + (_FLOAT_PREC)epsilon));
+
+    for(int n = 0; n < batchSize; n++)
+    {
+        index = (n * batchStride) + (xgid * cStride) + (ygid * 4);
+        value = *((const __global _FLOAT4*)(in + index));
+
+        inhat = (_FLOAT_PREC4)(FLOAT2FLOATPREC(value.x),
+                               FLOAT2FLOATPREC(value.y),
+                               FLOAT2FLOATPREC(value.z),
+                               FLOAT2FLOATPREC(value.w));
+        inhat = (inhat - mean) * invVariance;
+        inhat = mad(pscale, inhat, pbias);
+        value = (_FLOAT4)(FLOATPREC2FLOAT(inhat.x),
+                          FLOATPREC2FLOAT(inhat.y),
+                          FLOATPREC2FLOAT(inhat.z),
+                          FLOATPREC2FLOAT(inhat.w));
+
+        *((__global _FLOAT4*)(out + index)) = value;
+    }
+#endif
+
 } // end spatial norm
 
 #ifdef __clang__

@@ -92,8 +92,8 @@ ConvSolution BnFwdInference::GetSolution(const ExecutionContext& context,
         size_t max_localsize = 256;
         if(problem.GetXDesc().GetLayout_t() == miopenTensorNHWC)
         {
-            xlocalsize = std::min(size_t{c}, max_localsize);
-            xgridsize  = xlocalsize * ((c + xlocalsize - 1) / xlocalsize);
+            xlocalsize = std::min(size_t{c / 4}, max_localsize);
+            xgridsize  = xlocalsize * ((c / 4 + xlocalsize - 1) / xlocalsize);
             ylocalsize = max_localsize / xlocalsize;
             ygridsize  = ylocalsize * ((in_cstride + ylocalsize - 1) / ylocalsize);
         }
@@ -102,7 +102,7 @@ ConvSolution BnFwdInference::GetSolution(const ExecutionContext& context,
             xlocalsize = 1;
             xgridsize  = c;
             ylocalsize = max_localsize;
-            ygridsize  = ylocalsize * ((in_cstride + ylocalsize - 1) / ylocalsize);
+            ygridsize  = ylocalsize * ((in_cstride / 4 + ylocalsize - 1) / ylocalsize);
         }
         zlocalsize = 1;
         zgridsize  = 1;
@@ -133,6 +133,7 @@ ConvSolution BnFwdInference::GetSolution(const ExecutionContext& context,
             {"MIO_BN_GFX103X", (StartsWith(handle.GetDeviceName(), "gfx103") ? "1" : "0")},
             {"MIO_BN_GFX110X", (StartsWith(handle.GetDeviceName(), "gfx110") ? "1" : "0")},
             {"MIO_BN_GFX120X", (StartsWith(handle.GetDeviceName(), "gfx120") ? "1" : "0")},
+            {"MIO_LAYOUT_NHWC", static_cast<int>(problem.IsLayoutNHWC())},
         };
 
         kernel.comp_options = build_params.GenerateFor(kbp::OpenCL{});
@@ -152,6 +153,8 @@ ConvSolution BnFwdInference::GetSolution(const ExecutionContext& context,
         return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
             decltype(auto) kernel = handle_.Run(kernels.front());
             decltype(auto) params = raw_params.CastTo<miopen::batchnorm::InfInvokeParams>();
+
+            // std::cout << "params.epsilon: " << params.epsilon << std::endl;
 
             int n_, c_, h_, w_;
             std::tie(n_, c_, h_, w_) = tien<4>(params.xDesc->GetLengths());
