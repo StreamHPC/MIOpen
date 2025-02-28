@@ -65,3 +65,6 @@ build*/
 
 # Python cache
 __pycache__/
+
+# Benchmarks results
+benchmark_results/

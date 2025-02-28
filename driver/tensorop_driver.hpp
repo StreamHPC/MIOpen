@@ -316,13 +316,21 @@ int TensorOpDriver<Tgpu, Tref>::RunForwardGPU()
         std::tie(in_n, in_c, in_h, in_w) = miopen::tien<4>(miopen::deref(aTensor).GetLengths());
         size_t dataSz =
             in_n * in_c * in_h * in_w * miopen::GetTypeSize(miopen::deref(aTensor).GetType());
-
+#ifdef MIOPEN_PRINT_STD_STATS
+        // layer, readbytes, writebytes, GB/s, timeMS
+        printf("stdstats: tensor-op, %zu, %zu, %f, %f\n",
+               3 * dataSz,
+               dataSz,
+               4 * dataSz / min_time / 1e6,
+               (iters > 1) ? avgtime / (iters - 1) : min_time);
+#else
         printf("stats: name, bytesRead, bytesWritten, GB/s, timeMs\n");
         printf("stats: tensor op, %zu, %zu, %f, %f\n",
                3 * dataSz,
                dataSz,
                4 * dataSz / min_time / 1e6,
-               avgtime / (iters - 1));
+               (iters > 1) ? avgtime / (iters - 1) : min_time);
+#endif
     }
     if(!is_set && !is_scale)
         c_dev->FromGPU(GetStream(), c.data());

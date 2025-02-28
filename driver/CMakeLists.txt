@@ -80,6 +80,10 @@ endif()
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU") 
     set_target_properties(MIOpenDriver PROPERTIES COMPILE_FLAGS -pthread LINK_FLAGS -pthread)
 endif()
+# Print standarized stats
+if(MIOPEN_PRINT_STD_STATS)
+    target_compile_definitions(MIOpenDriver PUBLIC MIOPEN_PRINT_STD_STATS)
+endif()
 
 if( NOT ENABLE_ASAN_PACKAGING )
   install(TARGETS MIOpenDriver 

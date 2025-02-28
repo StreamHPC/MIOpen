@@ -353,14 +353,21 @@ int ActivationDriver<Tgpu, Tref>::RunForwardGPU()
         std::tie(in_n, in_c, in_h, in_w) = miopen::tien<4>(miopen::deref(inputTensor).GetLengths());
         size_t dataSz =
             in_n * in_c * in_h * in_w * miopen::GetTypeSize(miopen::deref(inputTensor).GetType());
-
-        // layer, readbytes, writebytes, BG/s, timeMS
+#ifdef MIOPEN_PRINT_STD_STATS
+        // layer, readbytes, writebytes, GB/s, timeMS
+        printf("stdstats: fwd-activ, %zu, %zu, %f, %f\n",
+               dataSz,
+               dataSz,
+               2 * dataSz / lowtime / 1e6,
+               (iters > 1) ? avgtime / (iters - 1) : lowtime);
+#else
         printf("stats: name, bytesRead, bytesWritten, GB/s, timeMs\n");
         printf("stats: fwd-activ, %zu, %zu, %f, %f\n",
                dataSz,
                dataSz,
                2 * dataSz / lowtime / 1e6,
-               avgtime / (iters - 1));
+               (iters > 1) ? avgtime / (iters - 1) : lowtime);
+#endif
     }
 
     out_dev->FromGPU(GetStream(), out.data());
@@ -439,14 +446,21 @@ int ActivationDriver<Tgpu, Tref>::RunBackwardGPU()
         std::tie(in_n, in_c, in_h, in_w) = miopen::tien<4>(miopen::deref(inputTensor).GetLengths());
         size_t dataSz =
             in_n * in_c * in_h * in_w * miopen::GetTypeSize(miopen::deref(inputTensor).GetType());
-
-        // layer, readbytes, writebytes, BG/s, timeMS
+#ifdef MIOPEN_PRINT_STD_STATS
+        printf("stdstats: bwd-activ, %zu, %zu, %f, %f\n",
+               dataSz,
+               dataSz,
+               2 * dataSz / lowtime / 1e6,
+               avgtime / (iters - 1));
+#else
+        // layer, readbytes, writebytes, GB/s, timeMS
         printf("stats: name, bytesRead, bytesWritten, GB/s, timeMs\n");
         printf("stats: bwd-activ, %zu, %zu, %f, %f\n",
                dataSz,
                dataSz,
                2 * dataSz / lowtime / 1e6,
                avgtime / (iters - 1));
+#endif
     }
 
     din_dev->FromGPU(GetStream(), din.data());

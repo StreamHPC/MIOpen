@@ -882,12 +882,21 @@ int BatchNormDriver<TInput, Tref, TAcc, TScaleBias, TOut>::RunForwardGPU()
         {
             rdCnt = 1;
         }
+#ifdef MIOPEN_PRINT_STD_STATS
+        // layer, readbytes, writebytes, GB/s, timeMS
+        printf("stdstats: bnormf, %zu, %zu, %f, %f\n",
+               dataSz,
+               dataSz,
+               (rdCnt * dataSz + wrCnt * dataSz) / lowtime / 1e6,
+               (iters > 1) ? avgtime / (iters - 1) : lowtime);
+#else
         // layer, flopCnt, reads, writes, GFLOPS, GB/s, timeMs
         printf("stats: bnormf, 0, %zu, %zu, 0, %f, %f\n",
                dataSz,
                dataSz,
                (rdCnt * dataSz + wrCnt * dataSz) / lowtime / 1e6,
-               lowtime);
+               (iters > 1) ? avgtime / (iters - 1) : lowtime);
+#endif
     }
     return miopenStatusSuccess;
 }
@@ -1134,12 +1143,21 @@ int BatchNormDriver<TInput, Tref, TAcc, TScaleBias, TOut>::RunBackwardGPU()
             size_t dataSz = (M + 2 * in_c) * miopen::GetTypeSize(in.GetTensor().desc.GetType());
             float rdCnt   = 2.0;
             float wrCnt   = 1.0;
+#ifdef MIOPEN_PRINT_STD_STATS
+            // layer, readbytes, writebytes, GB/s, timeMS
+            printf("stdstats: bnormb, %zu, %zu, %f, %f\n",
+                   dataSz,
+                   dataSz,
+                   (rdCnt * dataSz + wrCnt * dataSz) / lowtime / 1e6,
+                   lowtime);
+#else
             // layer, flopCnt, reads, writes, GFLOPS, GB/s, timeMs
             printf("stats: bnormb, 0, %zu, %zu, 0, %f, %f\n",
                    dataSz,
                    dataSz,
                    (rdCnt * dataSz + wrCnt * dataSz) / lowtime / 1e6,
                    lowtime);
+#endif
         }
     }
 

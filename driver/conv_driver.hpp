@@ -1700,7 +1700,15 @@ void ConvDriver<Tgpu, Tref>::PrintForwardTime(const float kernel_total_time,
 
         size_t outputBytes = 1.0 * out_n * out_c * out_h * out_w *
                              miopen::GetTypeSize(miopen::deref(outputTensor).GetType());
-
+#ifdef MIOPEN_PRINT_STD_STATS
+        (void)flopCnt;
+        // layer, readbytes, writebytes, GB/s, timeMS
+        printf("stdstats: fwd-conv, %zu, %zu, %f, %f\n",
+                readBytes,
+                outputBytes,
+                (readBytes + outputBytes) / kernel_average_time / 1e6,
+                kernel_average_time);
+#else
         printf("stats: name, n, c, ho, wo, x, y, k, flopCnt, bytesRead, bytesWritten, GFLOPs, "
                "GB/s, timeMs\n");
         printf("stats: %s%dx%du%d, %d, %d, %d, %d, %d, %d, %d,  %zu, %zu, %zu, %.0f, %.0f, %f\n",
@@ -1721,6 +1729,7 @@ void ConvDriver<Tgpu, Tref>::PrintForwardTime(const float kernel_total_time,
                flopCnt / kernel_average_time / 1e6,
                (readBytes + outputBytes) / kernel_average_time / 1e6,
                kernel_average_time);
+#endif
     }
     else
     { // 3d
@@ -1744,7 +1753,15 @@ void ConvDriver<Tgpu, Tref>::PrintForwardTime(const float kernel_total_time,
 
         size_t outputBytes = 1.0 * out_n * out_c * out_d * out_h * out_w *
                              miopen::GetTypeSize(miopen::deref(outputTensor).GetType());
-
+#ifdef MIOPEN_PRINT_STD_STATS
+        (void)flopCnt;
+        // layer, readbytes, writebytes, GB/s, timeMS
+        printf("stdstats: fwd-conv, %zu, %zu, %f, %f\n",
+                readBytes,
+                outputBytes,
+                (readBytes + outputBytes) / kernel_average_time / 1e6,
+                kernel_average_time);
+#else
         printf("stats: name  , n, c, do, ho, wo, z, y, x, k, flopCnt, bytesRead, bytesWritten, "
                "GFLOPs, "
                "GB/s, timeMs\n");
@@ -1770,6 +1787,7 @@ void ConvDriver<Tgpu, Tref>::PrintForwardTime(const float kernel_total_time,
                flopCnt / kernel_average_time / 1e6,
                (readBytes + outputBytes) / kernel_average_time / 1e6,
                kernel_average_time);
+#endif
     }
 }
 
@@ -2619,7 +2637,15 @@ void ConvDriver<Tgpu, Tref>::PrintBackwardDataTime(float kernel_total_time, floa
 
         size_t outputBytes = 1.0 * out_n * out_c * out_h * out_w *
                              miopen::GetTypeSize(miopen::deref(outputTensor).GetType());
-
+#ifdef MIOPEN_PRINT_STD_STATS
+        (void)flopCnt;
+        // layer, readbytes, writebytes, GB/s, timeMS
+        printf("stdstats: bwdd-conv, %zu, %zu, %f, %f\n",
+                readBytes,
+                outputBytes,
+                (readBytes + outputBytes) / kernel_average_time / 1e6,
+                kernel_average_time);
+#else
         printf("stats: name, n, c, ho, wo, x, y, k, flopCnt, bytesRead, bytesWritten, GFLOPs, "
                "GB/s, timeMs\n");
         printf("stats: %s%dx%du%d, %d, %d, %d, %d, %d, %d, %d,  %zu, %zu, %zu, %.0f, %.0f, %f\n",
@@ -2640,6 +2666,7 @@ void ConvDriver<Tgpu, Tref>::PrintBackwardDataTime(float kernel_total_time, floa
                flopCnt / kernel_average_time / 1e6,
                (readBytes + outputBytes) / kernel_average_time / 1e6,
                kernel_average_time);
+#endif
     }
     else
     { // 3d
@@ -2663,7 +2690,15 @@ void ConvDriver<Tgpu, Tref>::PrintBackwardDataTime(float kernel_total_time, floa
 
         size_t outputBytes = 1.0 * out_n * out_c * out_d * out_h * out_w *
                              miopen::GetTypeSize(miopen::deref(outputTensor).GetType());
-
+#ifdef MIOPEN_PRINT_STD_STATS
+        (void)flopCnt;
+        // layer, readbytes, writebytes, GB/s, timeMS
+        printf("stdstats: bwdd-conv, %zu, %zu, %f, %f\n",
+                readBytes,
+                outputBytes,
+                (readBytes + outputBytes) / kernel_average_time / 1e6,
+                kernel_average_time);
+#else
         printf(
             "stats: name, n, c, do, ho, wo, z, x, y, k, flopCnt, bytesRead, bytesWritten, GFLOPs, "
             "GB/s, timeMs\n");
@@ -2689,6 +2724,7 @@ void ConvDriver<Tgpu, Tref>::PrintBackwardDataTime(float kernel_total_time, floa
                flopCnt / kernel_average_time / 1e6,
                (readBytes + outputBytes) / kernel_average_time / 1e6,
                kernel_average_time);
+#endif
     }
 }
 
@@ -2824,7 +2860,15 @@ void ConvDriver<Tgpu, Tref>::PrintBackwardWrwTime(float kernel_total_time, float
                          out_w / group_count;
         size_t readBytes   = 0;
         size_t outputBytes = 0;
-
+#ifdef MIOPEN_PRINT_STD_STATS
+        (void)flopCnt;
+        // layer, readbytes, writebytes, GB/s, timeMS
+        printf("stdstats: bwdw-conv, %zu, %zu, %f, %f\n",
+                readBytes,
+                outputBytes,
+                (readBytes + outputBytes) / kernel_average_time / 1e6,
+                kernel_average_time);
+#else
         printf("stats: name, n, c, ho, wo, x, y, k, flopCnt, bytesRead, bytesWritten, GFLOPs, "
                "GB/s, timeMs\n");
         printf("stats: %s%dx%du%d, %d, %d, %d, %d, %d, %d, %d,  %zu, %zu, %zu, %.0f, %.0f, %f\n",
@@ -2845,6 +2889,7 @@ void ConvDriver<Tgpu, Tref>::PrintBackwardWrwTime(float kernel_total_time, float
                flopCnt / kernel_average_time / 1e6,
                (readBytes + outputBytes) / kernel_average_time / 1e6,
                kernel_average_time);
+#endif
     }
     else
     { // 3d
@@ -2862,7 +2907,15 @@ void ConvDriver<Tgpu, Tref>::PrintBackwardWrwTime(float kernel_total_time, float
                          out_d * out_h * out_w / group_count;
         size_t readBytes   = 0;
         size_t outputBytes = 0;
-
+#ifdef MIOPEN_PRINT_STD_STATS
+        (void)flopCnt;
+        // layer, readbytes, writebytes, GB/s, timeMS
+        printf("stdstats: bwdw-conv, %zu, %zu, %f, %f\n",
+                readBytes,
+                outputBytes,
+                (readBytes + outputBytes) / kernel_average_time / 1e6,
+                kernel_average_time);
+#else
         printf(
             "stats: name, n, c, do, ho, wo, z, x, y, k, flopCnt, bytesRead, bytesWritten, GFLOPs, "
             "GB/s, timeMs\n");
@@ -2888,6 +2941,7 @@ void ConvDriver<Tgpu, Tref>::PrintBackwardWrwTime(float kernel_total_time, float
                flopCnt / kernel_average_time / 1e6,
                (readBytes + outputBytes) / kernel_average_time / 1e6,
                kernel_average_time);
+#endif
     }
 }
 
