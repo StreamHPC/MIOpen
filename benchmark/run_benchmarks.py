@@ -94,7 +94,7 @@ def benchmark_layer(layer: str, type: str, iters: int, out_dir: str, miopen_cmd:
     '''
     # Gather results for all combinations of arguments' values
     results = []
-    args = bench_matrix[layer]['args']
+    args = bench_matrix[layer][type]['args']
     args_keys = list(args.keys())
     args_values = list(args.values())
     for values_combination in product(*args_values):
@@ -162,7 +162,7 @@ if __name__ == '__main__':
     if not args.layers:
         args.layers = list(bench_matrix.keys())
     if not args.types:
-        args.types = [','.join(bench_matrix[layer]['types']) for layer in bench_matrix.keys()]
+        args.types = [','.join(bench_matrix[layer].keys()) for layer in args.layers]
     if len(args.layers) != len(args.types):
         parser.error('There must be at least one type specified for each layer')
         
@@ -189,5 +189,4 @@ if __name__ == '__main__':
 # - handle errors: errors should be allowed because not all combinations are legal, but also unwanted errors should be reported
 #     - other option is somehow handle the legal/unlegal combination
 #     - another option is rely on the tests to catch these errors
-# - update bench_matrix
 # - add support for subset of layer args too
