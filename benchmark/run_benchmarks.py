@@ -30,6 +30,7 @@
 
 import argparse
 import os
+import sys
 import json
 import logging
 import rich.logging
@@ -104,9 +105,10 @@ def benchmark_layer(layer: str, type: str, iters: int, out_dir: str, miopen_cmd:
         for key, value in zip(args_keys, values_combination):
             driver_command.extend([f'--{key}', str(value)])
             args_dict[key] = value
+        driver_command_str = ' '.join(driver_command)
         try:
             # Get results for 'iters' runs
-            log.info(f'Running {driver_command} for {iters} iters')
+            log.info(f'Running {driver_command_str} for {iters} iters')
             runs_results = []
             for _ in range(iters):
                 run_result = subprocess.run(driver_command, capture_output=True, text=True, check=True)
@@ -121,14 +123,17 @@ def benchmark_layer(layer: str, type: str, iters: int, out_dir: str, miopen_cmd:
             convert_std_to_relative(averaged_result)
             # Store averaged results
             results.append({
-                'command': ' '.join(driver_command),
+                'command': driver_command_str,
                 'args': args_dict,
                 'device_arch': arch,
                 'bandwidth_bytes_per_sec': bandwidth_gbs * 1024 ** 3,
                 'results': averaged_result.to_dict(orient='records')})
         except subprocess.CalledProcessError as e:
-            log.error(f'Error benchmarking {driver_command}: {e}')
-            print(e)
+            if "Unsupported layout" in e.stderr:
+                log.warning(f'Ignoring \'Unsupported layout\' error for {driver_command_str}')
+                continue 
+            log.error(f'Error benchmarking {driver_command_str}: {e}')
+            sys.exit(1)
 
     # Export results to JSON
     result_dir = os.path.join(out_dir, 'benchmark_results')
@@ -183,10 +188,3 @@ if __name__ == '__main__':
         for type in types:
             log.info(f'Benchmarking {layer}{type} for {args.arch}')
             benchmark_layer(layer=layer, type=type, iters=int(args.iters), out_dir=args.out_dir, miopen_cmd=args.miopen_cmd, arch=args.arch, bandwidth_gbs=args.bandwidth_gbs)
-
-
-# TODO
-# - handle errors: errors should be allowed because not all combinations are legal, but also unwanted errors should be reported
-#     - other option is somehow handle the legal/unlegal combination
-#     - another option is rely on the tests to catch these errors
-# - add support for subset of layer args too
