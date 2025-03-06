@@ -24,15 +24,14 @@ import json
 import sys
 import os.path
 import pandas as pd
-from functools import reduce
 from tabulate import tabulate
 from colorama import Fore, Style
-from tabulate import tabulate
 
 parser = argparse.ArgumentParser(
     prog='compare_benchmarks',
     description='Compare MIOpen layers benchmark results')
 parser.add_argument('files', nargs='*', type=str, help='JSON results')
+parser.add_argument('-a', '--arch', default='gfx942', help='Architecture to target, default to gfx942')
 parser.add_argument('-b', '--baseline-dir', help='Path to directory with baseline JSON files')
 parser.add_argument('-c', '--compare-dir', help='Path to directory with JSON files to be compared against baseline')
 parser.add_argument('-m', '--memory', action='store_true', default=False, help='Compare memory bandwidth')
@@ -88,21 +87,18 @@ for baseline_file, compare_file in zip(baseline_files, compare_files):
     entries = []
     for bresults, cresults in zip(bdata,cdata):
         keys = bresults['args'].keys()
-        for bentry, centry in zip(bresults['results'], cresults['results']):
-            new_entry = {'layer': str(bentry['layer'])}
-            new_entry.update({k: str(bresults['args'][k]) for k in keys})
-            if args.memory and bentry['mem_bw_gbs_mean']:
-                diff = (centry['mem_bw_gbs_mean'] - bentry['mem_bw_gbs_mean']) / bentry['mem_bw_gbs_mean'] * 100 if bentry['mem_bw_gbs_mean'] else 0
-                stddev = bentry['mem_bw_gbs_std']
-                color = pick_color(diff, stddev)
-                new_entry[f'mem_{diff_label}'] = f'{color}{diff}{Style.RESET_ALL}'
-                new_entry[f'mem_{std_label}'] = stddev
-            if args.time and bentry['time_ms_mean']:
-                diff = (centry['time_ms_mean'] - bentry['time_ms_mean']) / bentry['time_ms_mean'] * 100 if bentry['time_ms_mean'] else 0
-                stddev = bentry['time_ms_std']
-                color = pick_color(diff, stddev)
-                new_entry[f'time_{diff_label}'] = f'{color}{diff}{Style.RESET_ALL}'
-                new_entry[f'time_{std_label}'] = stddev
+        for bresult, cresult in zip(bresults['results'], cresults['results']):
+            new_entry = {'layer': str(bresult['layer']), **{k: str(bresults['args'][k]) for k in keys}}
+            for metric, mean_key, std_key in [('memory', 'mem_bw_gbs_mean', 'mem_bw_gbs_std'), ('time', 'time_ms_mean', 'time_ms_std')]:
+                if getattr(args, metric):
+                    if metric == 'memory':
+                        diff = ((cresult[mean_key] - bresult[mean_key]) / bresult[mean_key] * 100) if bresult[mean_key] else 0
+                    else:
+                        diff = ((bresult[mean_key] - cresult[mean_key]) / bresult[mean_key] * 100) if bresult[mean_key] else 0
+                    stddev = bresult[std_key]
+                    color = pick_color(diff, stddev)
+                    new_entry[f'{metric}_{diff_label}'] = f'{color}{diff}{Style.RESET_ALL}'
+                    new_entry[f'{metric}_{std_label}'] = stddev
             entries.append(new_entry)
 
     columns = [('key', 'layer')]
@@ -111,7 +107,4 @@ for baseline_file, compare_file in zip(baseline_files, compare_files):
     columns.append(('compare', std_label))
     df = pd.DataFrame.from_dict(entries)
     df.columns = [''.join(col).strip() for col in df.columns.values]
-    selected_columns = ['key', 'compare']
     print(tabulate(df, headers='keys', showindex=False, tablefmt='psql'))
-
-

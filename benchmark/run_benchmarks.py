@@ -89,24 +89,29 @@ def convert_std_to_relative(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-def benchmark_layer_full(layer: str, type: str, iters: int, out_dir: str, miopen_cmd: str, arch:str, bandwidth_gbs: float) -> None:
+def export_results(layer: str, type: str, arch: str, out_dir: str, results: list) -> None:
+    '''
+    Write results to JSON file.
+    '''
+    result_dir = os.path.join(out_dir, 'benchmark_results')
+    os.makedirs(result_dir, exist_ok=True)
+    result_file = os.path.join(result_dir, f'benchmark_{layer}{f"_{type}" if type else ""}_{arch}.json')
+    with open(result_file, 'w') as f:
+        json.dump(results, f, indent=2)
+
+def benchmark_layer(layer: str, type: str, iters: int, out_dir: str, miopen_cmd: str, arch: str, bandwidth_gbs: float, params_list: list) -> None:
     '''
     The core benchmarking procedure:
     1) Gather results from MIOpenDriver for a single layer and type and all combinations of arguments' values.
     2) Compute metrics (arithmetic mean, standard deviation).
     3) Export results to JSON.
     '''
-    # Gather results for all combinations of arguments' values
     results = []
-    type_config = bench_matrix[layer][type]
-    args = type_config['args']
-    args_keys = list(args.keys())
-    args_values = list(args.values())
-    for values_combination in product(*args_values):
+    for params in params_list:
         # Get command for each combination of args
         driver_command = [miopen_cmd, f'{layer}{type}']
         args_dict = {}
-        for key, value in zip(args_keys, values_combination):
+        for key, value in params.items():
             driver_command.extend([f'--{key}', str(value)])
             args_dict[key] = value
         driver_command_str = ' '.join(driver_command)
@@ -140,68 +145,25 @@ def benchmark_layer_full(layer: str, type: str, iters: int, out_dir: str, miopen
             sys.exit(1)
 
     # Export results to JSON
-    result_dir = os.path.join(out_dir, 'benchmark_results')
-    os.makedirs(result_dir, exist_ok=True)
-    result_file = os.path.join(result_dir, f'benchmark_{layer}{f"_{type}" if type else ""}_{arch}.json')
-    with open(result_file, 'w') as f:
-        json.dump(results, f, indent=2)
+    export_results(layer, type, arch, out_dir, results)
+
+def benchmark_layer_full(layer: str, type: str, iters: int, out_dir: str, miopen_cmd: str, arch:str, bandwidth_gbs: float) -> None:
+    '''
+    Benchmark MIOpen layer for all the benchmarking matrix combinations.
+    '''
+    type_config = bench_matrix[layer][type]
+    args_keys = list(type_config['args'].keys())
+    args_values = list(type_config['args'].values())
+    params_list = [dict(zip(args_keys, values)) for values in product(*args_values)]
+    benchmark_layer(layer, type, iters, out_dir, miopen_cmd, arch, bandwidth_gbs, params_list)
 
 def benchmark_layer_shapes(layer: str, type: str, iters: int, out_dir: str, miopen_cmd: str, arch:str, bandwidth_gbs: float) -> None:
     '''
-    The core benchmarking procedure:
-    1) Gather results from MIOpenDriver for a single layer and type and all combinations of arguments' values.
-    2) Compute metrics (arithmetic mean, standard deviation).
-    3) Export results to JSON.
+    Benchmark MIOpen layer for all the shapes.
     '''
-    # Gather results for all combinations of arguments' values
-    results = []
     type_config = bench_matrix[layer][type]
-    include_list = type_config.get('include', [])
-    for shape in include_list:
-        # Get command for each combination of args
-        driver_command = [miopen_cmd, f'{layer}{type}']
-        args_dict = {}
-        for key, value in shape.items():
-            driver_command.extend([f'--{key}', str(value)])
-            args_dict[key] = value
-        driver_command_str = ' '.join(driver_command)
-        args_dict[key] = value
-        try:
-            # Get results for 'iters' runs
-            log.info(f'Running {driver_command_str} for {iters} iters')
-            runs_results = []
-            for _ in range(iters):
-                run_result = subprocess.run(driver_command, capture_output=True, text=True, check=True)
-                parsed_run_result = parse_output(run_result.stdout)
-                runs_results.extend(parsed_run_result)
-            # Compute metrics (arithmetic mean, standard deviation)
-            df = pd.DataFrame(runs_results)
-            averaged_result = df.groupby('layer').agg(['mean', 'std'])
-            # Flatten metrics, stddev is reported in % with respect to the mean
-            averaged_result.columns = ['_'.join(col) for col in averaged_result.columns]
-            averaged_result = averaged_result.reset_index()
-            convert_std_to_relative(averaged_result)
-            # Store averaged results
-            results.append({
-                'command': driver_command_str,
-                'args': args_dict,
-                'device_arch': arch,
-                'bandwidth_gbs': bandwidth_gbs,
-                'results': averaged_result.to_dict(orient='records')})
-        except subprocess.CalledProcessError as e:
-            if "Unsupported layout" in e.stderr:
-                log.warning(f'Ignoring \'Unsupported layout\' error for {driver_command_str}')
-                continue 
-            log.error(f'Error benchmarking {driver_command_str}: {e}')
-            sys.exit(1)
-
-    # Export results to JSON
-    result_dir = os.path.join(out_dir, 'benchmark_results')
-    os.makedirs(result_dir, exist_ok=True)
-    result_file = os.path.join(result_dir, f'benchmark_{layer}{f"_{type}" if type else ""}_{arch}.json')
-    with open(result_file, 'w') as f:
-        json.dump(results, f, indent=2)
-
+    params_list = type_config.get('include', [])
+    benchmark_layer(layer, type, iters, out_dir, miopen_cmd, arch, bandwidth_gbs, params_list)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
