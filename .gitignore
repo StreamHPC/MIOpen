@@ -68,3 +68,6 @@ __pycache__/
 
 # Benchmarks results
 benchmark_results/
+
+# Benchmarks comparison in HTML
+*.html

@@ -26,6 +26,7 @@ import os.path
 import pandas as pd
 from tabulate import tabulate
 from colorama import Fore, Style
+from ansi2html import Ansi2HTMLConverter
 
 parser = argparse.ArgumentParser(
     prog='compare_benchmarks',
@@ -36,6 +37,7 @@ parser.add_argument('-b', '--baseline-dir', help='Path to directory with baselin
 parser.add_argument('-c', '--compare-dir', help='Path to directory with JSON files to be compared against baseline')
 parser.add_argument('-m', '--memory', action='store_true', default=False, help='Compare memory bandwidth')
 parser.add_argument('-t', '--time', action='store_true', default=False, help='Compare execution time')
+parser.add_argument('-oh', '--output-html', default='compare_benchmarks_output', help='Name of HTML tables output file (without extension)')
 
 pd.set_option('display.colheader_justify', 'left')
 
@@ -108,3 +110,9 @@ for baseline_file, compare_file in zip(baseline_files, compare_files):
     df = pd.DataFrame.from_dict(entries)
     df.columns = [''.join(col).strip() for col in df.columns.values]
     print(tabulate(df, headers='keys', showindex=False, tablefmt='psql'))
+    # Also export to html for better visualization
+    conv = Ansi2HTMLConverter(inline=True)
+    df_html = df.map(lambda x: conv.convert(str(x), full=False))
+    html_table = df_html.to_html(escape=False)
+    with open(f'{args.output_html}_{args.arch}.html', 'w') as f:
+        f.write(html_table)
