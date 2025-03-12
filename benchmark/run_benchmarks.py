@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 
 # Copyright (c) 2025 Advanced Micro Devices, Inc.
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -110,24 +110,36 @@ def convert_std_to_relative(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-def export_results(layer: str, type: str, arch: str, out_dir: str, results: list) -> None:
+def export_results(out_dir: str, out_file:str, results: list) -> None:
     '''
     Write results to JSON file.
     '''
-    result_dir = os.path.join(out_dir, 'benchmark_results')
-    os.makedirs(result_dir, exist_ok=True)
-    result_file = os.path.join(result_dir, f'benchmark_{layer}{f"_{type}" if type else ""}_{arch}.json')
-    with open(result_file, 'w') as f:
+    os.makedirs(out_dir, exist_ok=True)
+    with open(out_file, 'w') as f:
         json.dump(results, f, indent=2)
 
-def benchmark_layer(layer: str, type: str, iters: int, out_dir: str, miopen_cmd: str, arch: str, bandwidth_gbs: float, params_list: list) -> None:
+def benchmark_layer(layer: str, type: str, iters: int, out_dir: str, miopen_cmd: str, arch: str, bandwidth_gbs: float, params_list: list, incremental: bool) -> None:
     '''
     The core benchmarking procedure:
     1) Gather results from MIOpenDriver for a single layer and type and all combinations of arguments' values.
     2) Compute metrics (arithmetic mean, standard deviation).
     3) Export results to JSON.
     '''
-    results = []
+    result_dir = os.path.join(out_dir, 'benchmark_results')
+    result_file = os.path.join(result_dir, f'benchmark_{layer}{f"_{type}" if type else ""}_{arch}.json')
+
+    # Load existing results if run is incremental and results file exists
+    existing_results = []
+    existing_commands = {}
+    if incremental and os.path.exists(result_file):
+        try:
+            with open(result_file, 'r') as f:
+                existing_results = json.load(f)
+                existing_commands = {r['command'] for r in existing_results}
+        except:
+            pass
+    results = list(existing_results)
+
     for params in params_list:
         # Get command for each combination of args
         driver_command = [miopen_cmd, f'{layer}{type}']
@@ -136,6 +148,12 @@ def benchmark_layer(layer: str, type: str, iters: int, out_dir: str, miopen_cmd:
             driver_command.extend([f'--{key}', str(value)])
             args_dict[key] = value
         driver_command_str = ' '.join(driver_command)
+
+        # Skip if already exists
+        if incremental and driver_command_str in existing_commands:
+            log.info(f'Skipping existing result for command: {driver_command_str}')
+            continue
+
         try:
             # Get results for 'iters' runs
             log.info(f'Running {driver_command_str} for {iters} iters')
@@ -161,14 +179,14 @@ def benchmark_layer(layer: str, type: str, iters: int, out_dir: str, miopen_cmd:
         except subprocess.CalledProcessError as e:
             if "Unsupported layout" in e.stderr:
                 log.warning(f'Ignoring \'Unsupported layout\' error for {driver_command_str}')
-                continue 
+                continue
             log.error(f'Error benchmarking {driver_command_str}: {e}')
             sys.exit(1)
 
     # Export results to JSON
-    export_results(layer, type, arch, out_dir, results)
+    export_results(result_dir, result_file, results)
 
-def benchmark_layer_full(layer: str, type: str, iters: int, out_dir: str, miopen_cmd: str, arch:str, bandwidth_gbs: float) -> None:
+def benchmark_layer_full(layer: str, type: str, iters: int, out_dir: str, miopen_cmd: str, arch:str, bandwidth_gbs: float, incremental: bool) -> None:
     '''
     Benchmark MIOpen layer for all the benchmarking matrix combinations.
     '''
@@ -176,15 +194,15 @@ def benchmark_layer_full(layer: str, type: str, iters: int, out_dir: str, miopen
     args_keys = list(type_config['args'].keys())
     args_values = list(type_config['args'].values())
     params_list = [dict(zip(args_keys, values)) for values in product(*args_values)]
-    benchmark_layer(layer, type, iters, out_dir, miopen_cmd, arch, bandwidth_gbs, params_list)
+    benchmark_layer(layer, type, iters, out_dir, miopen_cmd, arch, bandwidth_gbs, params_list, incremental)
 
-def benchmark_layer_shapes(layer: str, type: str, iters: int, out_dir: str, miopen_cmd: str, arch:str, bandwidth_gbs: float) -> None:
+def benchmark_layer_shapes(layer: str, type: str, iters: int, out_dir: str, miopen_cmd: str, arch:str, bandwidth_gbs: float, incremental: bool) -> None:
     '''
     Benchmark MIOpen layer for all the shapes.
     '''
     type_config = bench_matrix[layer][type]
     params_list = type_config.get('include', [])
-    benchmark_layer(layer, type, iters, out_dir, miopen_cmd, arch, bandwidth_gbs, params_list)
+    benchmark_layer(layer, type, iters, out_dir, miopen_cmd, arch, bandwidth_gbs, params_list, incremental)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -194,6 +212,7 @@ if __name__ == '__main__':
 
     parser.add_argument('-a', '--arch', default='gfx942', help='Architecture to target, default to gfx942')
     parser.add_argument('-f', '--full-bench', action='store_true', help='Run full benchmarking matrix')
+    parser.add_argument('--incremental', action='store_true', help='Do not re-run benchmarks with existing results file')
     parser.add_argument('-l', '--layers', nargs='+', help='Space-separated list of layers to benchmark')
     parser.add_argument('-ls', '--list', action='store_true', help='List available layers')
     parser.add_argument(
@@ -214,7 +233,7 @@ if __name__ == '__main__':
         args.types = [','.join(bench_matrix[layer].keys()) for layer in args.layers]
     if len(args.layers) != len(args.types):
         parser.error('There must be at least one type specified for each layer')
-        
+
     if args.list:
         for layer in args.layers:
             print(layer)
@@ -232,7 +251,7 @@ if __name__ == '__main__':
         for type in types:
             log.info(f'Benchmarking {layer}{type} for {args.arch}')
             if args.full_bench:
-                benchmark_layer_full(layer=layer, type=type, iters=int(args.iters), out_dir=args.out_dir, miopen_cmd=args.miopen_cmd, arch=args.arch, bandwidth_gbs=args.bandwidth_gbs)
+                benchmark_layer_full(layer=layer, type=type, iters=int(args.iters), out_dir=args.out_dir, miopen_cmd=args.miopen_cmd, arch=args.arch, bandwidth_gbs=args.bandwidth_gbs, incremental=args.incremental)
             else:
-                benchmark_layer_shapes(layer=layer, type=type, iters=int(args.iters), out_dir=args.out_dir, miopen_cmd=args.miopen_cmd, arch=args.arch, bandwidth_gbs=args.bandwidth_gbs)
+                benchmark_layer_shapes(layer=layer, type=type, iters=int(args.iters), out_dir=args.out_dir, miopen_cmd=args.miopen_cmd, arch=args.arch, bandwidth_gbs=args.bandwidth_gbs, incremental=args.incremental)
     log.info(f'Finished benchmarking for {args.arch}')
