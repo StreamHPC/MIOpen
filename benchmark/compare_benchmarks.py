@@ -111,6 +111,9 @@ for baseline_file, compare_file in zip(baseline_files, compare_files):
     for bresults, cresults in zip(bdata,cdata):
         keys = bresults['args'].keys()
         for bresult, cresult in zip(bresults['results'], cresults['results']):
+            if bresult['layer'] != cresult['layer']:
+                print('Base and comparison results must contain the same layer+type combinations', file=sys.stderr)
+                sys.exit(1)
             new_entry = {'layer': str(bresult['layer']), **{k: str(bresults['args'][k]) for k in keys}}
             for metric, mean_key, std_key in [('memory', 'mem_bw_gbs_mean', 'mem_bw_gbs_std'), ('time', 'time_ms_mean', 'time_ms_std')]:
                 if getattr(args, metric):
