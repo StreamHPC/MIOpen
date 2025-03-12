@@ -1,0 +1,8 @@
+argparse
+pandas
+tabulate
+colorama
+rich
+subprocess32
+typing
+ansi2html
