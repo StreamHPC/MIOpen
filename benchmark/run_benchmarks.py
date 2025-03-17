@@ -65,9 +65,14 @@ from typing import Any, Dict, List
 from itertools import product
 import re
 
-# Read benchmarking matrix
-with open('bench_matrix.json', 'r') as file:
-    bench_matrix = json.load(file)
+# Read benchmarking matrix (JSON file)
+def read_json(json_path: str):
+    try:
+        with open(json_path, 'r') as file:
+            return json.load(file)
+    except Exception as e:
+        log.error(f'Could not read JSON file {json_path}: {e}')
+        sys.exit(1)
 
 # Run benchmarks
 def parse_output(output: str) -> List[Dict[str, Any]]:
@@ -211,6 +216,9 @@ if __name__ == '__main__':
     )
 
     parser.add_argument('-a', '--arch', default='gfx942', help='Architecture to target, default to gfx942')
+    parser.add_argument('-bm', '--bench-matrix',
+                        default=f'{os.path.dirname(os.path.realpath(__file__))}/bench_matrix.json',
+                        help='Path to benchmarking matrix JSON file, default to bench_matrix.json from script\'s folder')
     parser.add_argument('-f', '--full-bench', action='store_true', help='Run full benchmarking matrix')
     parser.add_argument('--incremental', action='store_true', help='Do not re-run benchmarks with existing results file')
     parser.add_argument('-l', '--layers', nargs='+', help='Space-separated list of layers to benchmark')
@@ -225,6 +233,16 @@ if __name__ == '__main__':
     parser.add_argument('-i', '--iters', type=int, default=2, help='Number of runs of each benchmark, default to 2')
 
     args = parser.parse_args()
+    
+    log_level = logging.INFO
+    if args.verbose:
+        log_level = logging.DEBUG
+
+    logging.basicConfig(format='%(message)s', handlers=[rich.logging.RichHandler(rich_tracebacks=True, markup=True)], level=log_level)
+    log = logging.getLogger('rich')
+
+    # Get benchmarking matrix
+    bench_matrix = read_json(args.bench_matrix)
 
     # Get layers and types and check correctness
     if not args.layers:
@@ -238,13 +256,6 @@ if __name__ == '__main__':
         for layer in args.layers:
             print(layer)
         quit()
-
-    log_level = logging.INFO
-    if args.verbose:
-        log_level = logging.DEBUG
-
-    logging.basicConfig(format='%(message)s', handlers=[rich.logging.RichHandler(rich_tracebacks=True, markup=True)], level=log_level)
-    log = logging.getLogger('rich')
 
     for layer, types_list in zip(args.layers, args.types):
         types = types_list.split(',')
