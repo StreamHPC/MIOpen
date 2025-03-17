@@ -233,7 +233,7 @@ if __name__ == '__main__':
     parser.add_argument('-i', '--iters', type=int, default=2, help='Number of runs of each benchmark, default to 2')
 
     args = parser.parse_args()
-    
+
     log_level = logging.INFO
     if args.verbose:
         log_level = logging.DEBUG
@@ -251,6 +251,9 @@ if __name__ == '__main__':
         args.types = [','.join(bench_matrix[layer].keys()) for layer in args.layers]
     if len(args.layers) != len(args.types):
         parser.error('There must be at least one type specified for each layer')
+
+    if args.iters < 2:
+        parser.error('The number of iterations mush be at least 2')
 
     if args.list:
         for layer in args.layers:
