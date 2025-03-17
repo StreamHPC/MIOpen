@@ -286,6 +286,10 @@ Check gtests formats
 cd ./test/utils && python3 gtest_formating_checks.py
 ```
 
+## Running the benchmarks
+
+MIOpen provides a benchmarking infrastucture for easily obtaining (and comparing) the performance results of MIOpen's layers as reported by the `MIOpenDriver`.
+The detailed steps are described in [benchmark/README.md](/benchmark/README.md).
 
 ## Formatting the code
 
