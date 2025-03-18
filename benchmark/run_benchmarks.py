@@ -150,9 +150,19 @@ def benchmark_layer(layer: str, type: str, iters: int, out_dir: str, miopen_cmd:
         driver_command = [miopen_cmd, f'{layer}{type}']
         args_dict = {}
         for key, value in params.items():
+            # If time set to 0, set to 1
+            if key == 'time' and value == 0:
+                value = 1
             driver_command.extend([f'--{key}', str(value)])
             args_dict[key] = value
         driver_command_str = ' '.join(driver_command)
+
+        # Manually add --time 1 if not in benchmarking matrix
+        if 'time' not in args_dict:
+            driver_command.extend([f'--time', str(1)])
+            args_dict['time'] = 1
+            log.info(f'Adding \'--time 1\' to command: {driver_command_str}')
+            driver_command_str = ' '.join(driver_command)
 
         # Skip if already exists
         if incremental and driver_command_str in existing_commands:
