@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 
 # Copyright (c) 2025 Advanced Micro Devices, Inc.
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -53,7 +53,6 @@ parser = argparse.ArgumentParser(
     prog='compare_benchmarks',
     description='Compare MIOpen layers benchmark results')
 parser.add_argument('files', nargs='*', type=str, help='JSON results')
-parser.add_argument('-a', '--arch', default='gfx942', help='Architecture to target, default to gfx942')
 parser.add_argument('-b', '--baseline-dir', help='Path to directory with baseline JSON files')
 parser.add_argument('-c', '--compare-dir', help='Path to directory with JSON files to be compared against baseline')
 parser.add_argument('-m', '--memory', action='store_true', default=False, help='Compare memory bandwidth')
@@ -107,13 +106,20 @@ for baseline_file, compare_file in zip(baseline_files, compare_files):
     with open(compare_file, 'r') as f:
         cdata = json.load(f)
 
+    if bdata[0]['results'][0]['layer'] != cdata[0]['results'][0]['layer']:
+        print('Base and comparison results must contain the same layer+type combinations', file=sys.stderr)
+        sys.exit(1)
+    layer = bdata[0]['results'][0]['layer']
+
+    if bdata[0]['device_arch'] != cdata[0]['device_arch']:
+        print(f'Results from {baseline_file} and {compare_file} are not for the same architecture', file=sys.stderr)
+        sys.exit(1)
+    device_arch = bdata[0]['device_arch']
+
     entries = []
     for bresults, cresults in zip(bdata,cdata):
         keys = bresults['args'].keys()
         for bresult, cresult in zip(bresults['results'], cresults['results']):
-            if bresult['layer'] != cresult['layer']:
-                print('Base and comparison results must contain the same layer+type combinations', file=sys.stderr)
-                sys.exit(1)
             new_entry = {'layer': str(bresult['layer']), **{k: str(bresults['args'][k]) for k in keys}}
             for metric, mean_key, std_key in [('memory', 'mem_bw_gbs_mean', 'mem_bw_gbs_std'), ('time', 'time_ms_mean', 'time_ms_std')]:
                 if getattr(args, metric):
@@ -138,5 +144,5 @@ for baseline_file, compare_file in zip(baseline_files, compare_files):
     conv = Ansi2HTMLConverter(inline=True)
     df_html = df.map(lambda x: conv.convert(str(x), full=False))
     html_table = df_html.to_html(escape=False)
-    with open(f'{args.output_html}_{args.arch}.html', 'w') as f:
+    with open(f'{args.output_html}_{layer}_{device_arch}.html', 'w') as f:
         f.write(html_table)
