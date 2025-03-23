@@ -91,13 +91,17 @@ elif len(args.files) > 0:
 diff_label = 'diff (%)'
 std_label = 'stddev (%)'
 
+regression = False
+
 def pick_color(diff: float, stddev: float):
+    global regression
     if diff >= 0:
         color = Fore.GREEN
     elif -1 < diff < 0 or -stddev < diff:
         color = Fore.YELLOW
     else:
         color = Fore.RED
+        regression = True
     return color
 
 for baseline_file, compare_file in zip(baseline_files, compare_files):
@@ -146,3 +150,6 @@ for baseline_file, compare_file in zip(baseline_files, compare_files):
     html_table = df_html.to_html(escape=False)
     with open(f'{args.output_html}_{layer}_{device_arch}.html', 'w') as f:
         f.write(html_table)
+
+if regression:
+    sys.exit(-1)
