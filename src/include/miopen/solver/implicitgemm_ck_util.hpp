@@ -312,6 +312,16 @@ ConvSolution InitAnyInvokerFactory(const ProblemDescriptionType& problem,
                 const auto& data_ctx = primitive_parameters.CastTo<CastType>();
                 auto argument_ptr    = ck_args.MakeArgPtr(sh_conv_ptr, data_ctx);
                 auto invoker_ptr     = sh_conv_ptr->MakeInvokerPointer();
+
+                // TODO this is a temporary solution for testing and benchmarking
+                // workspace must be passed as a parameter to miopenBatchNorm*
+                Allocator::ManageDataPtr workspace;
+                const std::size_t workspace_sz = sh_conv_ptr->GetWorkSpaceSize(argument_ptr.get());
+                if(workspace_sz > 0)
+                {
+                    workspace = handle.Create(workspace_sz);
+                    sh_conv_ptr->SetWorkSpacePointer(argument_ptr.get(), workspace.get());
+                }
                 {
                     WorkAroundHipEventProfiler prf(handle);
                     invoker_ptr->Run(argument_ptr.get(), {handle.GetStream(), false});
