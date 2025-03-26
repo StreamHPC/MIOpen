@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2021 Advanced Micro Devices, Inc.
+ * Copyright (c) 2021-2025 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -90,20 +90,24 @@ bool IsOCLFwdTrainTypeValid(const ProblemDescription& bn_problem)
 
 bool IsCKFwdTrainTypeValid(const ProblemDescription& bn_problem)
 {
-    // case 1 : mix type
-    return ((is_fp16_or_bfp16(bn_problem.GetXDesc().GetType()) &&
-             is_fp16_or_bfp16(bn_problem.GetYDesc().GetType()) &&
-             is_fp16_or_bfp16(bn_problem.GetBnScale().GetType()) &&
-             is_fp16_or_bfp16(bn_problem.GetBnBias().GetType()) &&
-             is_fp32(bn_problem.GetBnSMean().GetType()) &&
-             is_fp32(bn_problem.GetBnSVar().GetType())) ||
-            // case 2 : fp32 or fp64
-            (is_fp32_or_fp64(bn_problem.GetXDesc().GetType()) &&
-             is_fp32_or_fp64(bn_problem.GetYDesc().GetType()) &&
-             is_fp32_or_fp64(bn_problem.GetBnScale().GetType()) &&
-             is_fp32_or_fp64(bn_problem.GetBnBias().GetType()) &&
-             is_fp32_or_fp64(bn_problem.GetBnSMean().GetType()) &&
-             is_fp32_or_fp64(bn_problem.GetBnSVar().GetType())));
+    return // case 1 : mix type
+        (is_fp16_or_bfp16(bn_problem.GetXDesc().GetType()) &&
+         is_fp16_or_bfp16(bn_problem.GetYDesc().GetType()) &&
+         is_fp32(bn_problem.GetBnScale().GetType()) && is_fp32(bn_problem.GetBnBias().GetType()) &&
+         is_fp32(bn_problem.GetBnSMean().GetType()) && is_fp32(bn_problem.GetBnSVar().GetType())) ||
+        // case 2 : mix type
+        (is_fp16_or_bfp16(bn_problem.GetXDesc().GetType()) &&
+         is_fp16_or_bfp16(bn_problem.GetYDesc().GetType()) &&
+         is_fp16_or_bfp16(bn_problem.GetBnScale().GetType()) &&
+         is_fp16_or_bfp16(bn_problem.GetBnBias().GetType()) &&
+         is_fp32(bn_problem.GetBnSMean().GetType()) && is_fp32(bn_problem.GetBnSVar().GetType())) ||
+        // case 3 : fp32 or fp64
+        (is_fp32_or_fp64(bn_problem.GetXDesc().GetType()) &&
+         is_fp32_or_fp64(bn_problem.GetYDesc().GetType()) &&
+         is_fp32_or_fp64(bn_problem.GetBnScale().GetType()) &&
+         is_fp32_or_fp64(bn_problem.GetBnBias().GetType()) &&
+         is_fp32_or_fp64(bn_problem.GetBnSMean().GetType()) &&
+         is_fp32_or_fp64(bn_problem.GetBnSVar().GetType()));
 }
 
 bool IsOCLBwdTypeValid(const ProblemDescription& bn_problem)
@@ -122,19 +126,25 @@ bool IsOCLBwdTypeValid(const ProblemDescription& bn_problem)
 
 bool IsCKBwdTypeValid(const ProblemDescription& bn_problem)
 {
-    return ((is_fp16_or_bfp16(bn_problem.GetXDesc().GetType()) &&
-             bn_problem.GetDXDesc().GetType() == miopenFloat &&
-             is_fp16_or_bfp16(bn_problem.GetBnScale().GetType()) &&
-             bn_problem.GetDYDesc().GetType() == miopenFloat &&
-             bn_problem.GetBnSMean().GetType() == miopenFloat &&
-             bn_problem.GetBnSVar().GetType() == miopenFloat) ||
-            // case 1 : fp32 or fp64
-            (is_fp32_or_fp64(bn_problem.GetXDesc().GetType()) &&
-             is_fp32_or_fp64(bn_problem.GetDXDesc().GetType()) &&
-             is_fp32_or_fp64(bn_problem.GetBnScale().GetType()) &&
-             is_fp32_or_fp64(bn_problem.GetBnBias().GetType()) &&
-             is_fp32_or_fp64(bn_problem.GetBnSMean().GetType()) &&
-             is_fp32_or_fp64(bn_problem.GetBnSVar().GetType())));
+    return // case 1 : mix type
+        (is_fp16_or_bfp16(bn_problem.GetXDesc().GetType()) &&
+         is_fp16_or_bfp16(bn_problem.GetDXDesc().GetType()) &&
+         is_fp16_or_bfp16(bn_problem.GetDYDesc().GetType()) &&
+         is_fp32(bn_problem.GetBnScale().GetType()) && is_fp32(bn_problem.GetBnSMean().GetType()) &&
+         is_fp32(bn_problem.GetBnSVar().GetType())) ||
+        // case 2 : mix type
+        (is_fp16_or_bfp16(bn_problem.GetXDesc().GetType()) &&
+         is_fp32(bn_problem.GetDXDesc().GetType()) && is_fp32(bn_problem.GetDYDesc().GetType()) &&
+         is_fp16_or_bfp16(bn_problem.GetBnScale().GetType()) &&
+         is_fp32(bn_problem.GetBnSMean().GetType()) && is_fp32(bn_problem.GetBnSVar().GetType())) ||
+        // case 3 : fp32 or fp64
+        (is_fp32_or_fp64(bn_problem.GetXDesc().GetType()) &&
+         is_fp32_or_fp64(bn_problem.GetDXDesc().GetType()) &&
+         is_fp32_or_fp64(bn_problem.GetDYDesc().GetType()) &&
+         is_fp32_or_fp64(bn_problem.GetBnScale().GetType()) &&
+         is_fp32_or_fp64(bn_problem.GetBnBias().GetType()) &&
+         is_fp32_or_fp64(bn_problem.GetBnSMean().GetType()) &&
+         is_fp32_or_fp64(bn_problem.GetBnSVar().GetType()));
 }
 
 NetworkConfig ProblemDescription::MakeNetworkConfig() const

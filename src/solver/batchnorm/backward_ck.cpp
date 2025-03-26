@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2023 Advanced Micro Devices, Inc.
+ * Copyright (c) 2023-2025 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -105,8 +105,8 @@ struct CKArgsBNormBwd
         }
     }
 
-    CKArgsBNormBwd(const CKArgsBNormBwd&) = default;
-    CKArgsBNormBwd(CKArgsBNormBwd&&)      = default;
+    CKArgsBNormBwd(const CKArgsBNormBwd&)            = default;
+    CKArgsBNormBwd(CKArgsBNormBwd&&)                 = default;
     CKArgsBNormBwd& operator=(const CKArgsBNormBwd&) = default;
 
     template <typename InvokerPtr, typename InvokerParams>
@@ -254,8 +254,20 @@ void PerformanceConfigBnCKBwdBackward::HeuristicInit(
 #else
     switch(problem_desc.GetXDesc().GetType())
     {
-    case miopenHalf: Init<F16, F32, F32, F32, F16, F32, F32>(problem_desc); break;
-    case miopenBFloat16: Init<BF16, F32, F32, F32, BF16, F32, F32>(problem_desc); break;
+    case miopenHalf:
+        switch(problem_desc.GetDXDesc().GetType())
+        {
+        case miopenFloat: Init<F16, F16, F16, F32, F32, F32, F32>(problem_desc); break;
+        default: Init<F16, F32, F32, F32, F16, F32, F32>(problem_desc); break;
+        }
+        break;
+    case miopenBFloat16:
+        switch(problem_desc.GetDXDesc().GetType())
+        {
+        case miopenFloat: Init<BF16, BF16, BF16, F32, F32, F32, F32>(problem_desc); break;
+        default: Init<BF16, F32, F32, F32, BF16, F32, F32>(problem_desc); break;
+        }
+        break;
     case miopenFloat: Init<F32, F32, F32, F32, F32, F32, F32>(problem_desc); break;
     case miopenDouble: Init<F64, F64, F64, F64, F64, F64, F64>(problem_desc); break;
     case miopenFloat8_fnuz:
@@ -306,9 +318,20 @@ bool PerformanceConfigBnCKBwdBackward::IsValid(
 #else
     switch(problem_desc.GetXDesc().GetType())
     {
-    case miopenHalf: return CheckIsSupportCKArgs<F16, F32, F32, F32, F16, F32, F32>(problem_desc);
+    case miopenHalf:
+        switch(problem_desc.GetDXDesc().GetType())
+        {
+        case miopenFloat:
+            return CheckIsSupportCKArgs<F16, F32, F32, F32, F16, F32, F32>(problem_desc);
+        default: return CheckIsSupportCKArgs<F16, F16, F16, F32, F32, F32, F32>(problem_desc);
+        }
     case miopenBFloat16:
-        return CheckIsSupportCKArgs<BF16, F32, F32, F32, BF16, F32, F32>(problem_desc);
+        switch(problem_desc.GetDXDesc().GetType())
+        {
+        case miopenFloat:
+            return CheckIsSupportCKArgs<BF16, F32, F32, F32, BF16, F32, F32>(problem_desc);
+        default: return CheckIsSupportCKArgs<BF16, BF16, BF16, F32, F32, F32, F32>(problem_desc);
+        }
     case miopenFloat: return CheckIsSupportCKArgs<F32, F32, F32, F32, F32, F32, F32>(problem_desc);
     case miopenDouble: return CheckIsSupportCKArgs<F64, F64, F64, F64, F64, F64, F64>(problem_desc);
     case miopenFloat8_fnuz:
@@ -377,9 +400,20 @@ bool BnCKBwdBackward::IsApplicable(
 
     switch(bn_problem.GetXDesc().GetType())
     {
-    case miopenHalf: return CheckCKApplicability<F16, F32, F32, F32, F16, F32, F32>(bn_problem);
+    case miopenHalf:
+        switch(bn_problem.GetDXDesc().GetType())
+        {
+        case miopenFloat:
+            return CheckCKApplicability<F16, F32, F32, F32, F16, F32, F32>(bn_problem);
+        default: return CheckCKApplicability<F16, F16, F16, F32, F32, F32, F32>(bn_problem);
+        }
     case miopenBFloat16:
-        return CheckCKApplicability<BF16, F32, F32, F32, BF16, F32, F32>(bn_problem);
+        switch(bn_problem.GetDXDesc().GetType())
+        {
+        case miopenFloat:
+            return CheckCKApplicability<BF16, F32, F32, F32, BF16, F32, F32>(bn_problem);
+        default: return CheckCKApplicability<BF16, BF16, BF16, F32, F32, F32, F32>(bn_problem);
+        }
     case miopenFloat: return CheckCKApplicability<F32, F32, F32, F32, F32, F32, F32>(bn_problem);
     case miopenDouble: return CheckCKApplicability<F64, F64, F64, F64, F64, F64, F64>(bn_problem);
     case miopenInt64:
@@ -392,17 +426,27 @@ bool BnCKBwdBackward::IsApplicable(
     return false;
 }
 
-template <typename InvokerFactoryMakerNHWC>
+template <typename InvokerFactoryMaker>
 ConvSolution MakeAnyInvokerFactory(const miopen::batchnorm::ProblemDescription& problem,
-                                   InvokerFactoryMakerNHWC&& invoker_factory_maker_nhwc)
+                                   InvokerFactoryMaker&& invoker_factory_maker)
 {
 #if MIOPEN_BACKEND_HIP && MIOPEN_USE_COMPOSABLEKERNEL
     switch(problem.GetXDesc().GetType())
     {
-    case miopenFloat: return invoker_factory_maker_nhwc(F32{});
-    case miopenDouble: return invoker_factory_maker_nhwc(F64{});
-    case miopenHalf: return invoker_factory_maker_nhwc(F16{});
-    case miopenBFloat16: return invoker_factory_maker_nhwc(BF16{});
+    case miopenFloat: return invoker_factory_maker(F32{}, F32{}, F32{});
+    case miopenDouble: return invoker_factory_maker(F64{}, F64{}, F64{});
+    case miopenHalf:
+        switch(problem.GetDXDesc().GetType())
+        {
+        case miopenFloat: return invoker_factory_maker(F16{}, F32{}, F16{});
+        default: return invoker_factory_maker(F16{}, F16{}, F32{});
+        }
+    case miopenBFloat16:
+        switch(problem.GetDXDesc().GetType())
+        {
+        case miopenFloat: return invoker_factory_maker(BF16{}, F32{}, BF16{});
+        default: return invoker_factory_maker(BF16{}, BF16{}, F32{});
+        }
     case miopenInt8:
     case miopenInt32:
     case miopenInt64:
@@ -424,21 +468,19 @@ ConvSolution BnCKBwdBackward::GetSolution(
 {
 #if MIOPEN_BACKEND_HIP && MIOPEN_USE_COMPOSABLEKERNEL
     return MakeAnyInvokerFactory(
-        bn_problem,
-        [&](auto data_type_val) {
-            using T = decltype(data_type_val);
+        bn_problem, [&](auto x_type_val, auto dx_dy_type_val, auto scale_type_val) {
+            using XTy     = decltype(x_type_val);
+            using DxDyTy  = decltype(dx_dy_type_val);
+            using ScaleTy = decltype(scale_type_val);
 
-            using AccTy = std::conditional_t<std::is_same_v<T, F64>,
-                                             T,    // T==F64
-                                             F32>; // T==F32
-            return InitAnyInvokerFactory<DeviceOpBNBwdPtrs<T, AccTy, AccTy, AccTy, T, AccTy, AccTy>,
-                                         CKArgsBNormBwd,
-                                         miopen::batchnorm::BwdInvokeParams,
-                                         miopen::batchnorm::ProblemDescription>(bn_problem,
-                                                                                config.kernel_id);
-        }
-        // Todo: InvokerFactoryMakerNCHW
-    );
+            using AccTy = std::conditional_t<std::is_same_v<XTy, F64>, XTy, F32>;
+
+            return InitAnyInvokerFactory<
+                DeviceOpBNBwdPtrs<XTy, DxDyTy, DxDyTy, AccTy, ScaleTy, AccTy, AccTy>,
+                CKArgsBNormBwd,
+                miopen::batchnorm::BwdInvokeParams,
+                miopen::batchnorm::ProblemDescription>(bn_problem, config.kernel_id);
+        });
 #else
     std::ignore = bn_problem;
     std::ignore = config;
