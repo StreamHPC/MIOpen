@@ -238,7 +238,7 @@ set( MIOpen_Source
     solver/conv/conv_asm_implicit_gemm_gtc_perf_config.cpp
     solver/conv/conv_asm_implicit_gemm_gtc_wrw_nhwc.cpp
     solver/conv/conv_asm_implicit_gemm_v4r1_dynamic.cpp
-    solver/conv/conv_asm_implicit_gemm_wrw_gtc_dynamic_xdlops.cpp
+    # solver/conv/conv_asm_implicit_gemm_wrw_gtc_dynamic_xdlops.cpp
     solver/conv/conv_asm_implicit_gemm_wrw_v4r1_dynamic.cpp
     solver/conv/conv_bin_wino3x3U.cpp
     solver/conv/conv_bin_winoRxS.cpp
@@ -372,9 +372,9 @@ if( MIOPEN_BACKEND MATCHES "OpenCL" OR MIOPEN_BACKEND STREQUAL "HIPOC" OR MIOPEN
     file(GLOB_RECURSE STATIC_COMPOSABLE_KERNEL_SOURCE "kernels/static_composable_kernel/src/*/*.cpp")
     file(GLOB_RECURSE COMPOSABLE_KERNEL_INCLUDE "composable_kernel/composable_kernel/include/*.hpp")
     file(GLOB_RECURSE COMPOSABLE_KERNEL_SOURCE "composable_kernel/composable_kernel/src/*.cpp")
-    file(GLOB_RECURSE COMPOSABLE_KERNEL_DYNAMIC_ASM_SOURCE "kernels/dynamic_igemm/*.s")
-    file(GLOB_RECURSE COMPOSABLE_KERNEL_DYNAMIC_ASM_INCLUDE "kernels/dynamic_igemm/*.inc")
-    file(GLOB_RECURSE COMPOSABLE_KERNEL_DYNAMIC_CPP_SOURCE "kernels/dynamic_igemm/*.cpp")
+    # file(GLOB_RECURSE COMPOSABLE_KERNEL_DYNAMIC_ASM_SOURCE "kernels/dynamic_igemm/*.s")
+    # file(GLOB_RECURSE COMPOSABLE_KERNEL_DYNAMIC_ASM_INCLUDE "kernels/dynamic_igemm/*.inc")
+    # file(GLOB_RECURSE COMPOSABLE_KERNEL_DYNAMIC_CPP_SOURCE "kernels/dynamic_igemm/*.cpp")
     file(GLOB_RECURSE GPU_REFERENCE_KERNEL_HIP "kernels/gpu_reference_kernel/*.cpp")
     file(GLOB_RECURSE GPU_REFERENCE_KERNEL_ASM "kernels/gpu_reference_kernel/*.s")
     file(GLOB_RECURSE GPU_BATCHED_TRANSPOSE_KERNEL_HIP "kernels/gpu_batched_transpose_kernel/*.cpp")
@@ -385,7 +385,7 @@ if( MIOPEN_BACKEND MATCHES "OpenCL" OR MIOPEN_BACKEND STREQUAL "HIPOC" OR MIOPEN
     set(MIOPEN_KERNEL_INCLUDES
         ${STATIC_COMPOSABLE_KERNEL_INCLUDE}
         ${COMPOSABLE_KERNEL_INCLUDE}
-        ${COMPOSABLE_KERNEL_DYNAMIC_ASM_INCLUDE}
+        # ${COMPOSABLE_KERNEL_DYNAMIC_ASM_INCLUDE}
         ${GPU_GENERAL_TENSOR_REORDER_KERNEL_HIP_INCLUDE}
         include/miopen/implicitgemm_params.hpp
         kernels/activation_functions.hpp
@@ -514,8 +514,8 @@ if( MIOPEN_BACKEND MATCHES "OpenCL" OR MIOPEN_BACKEND STREQUAL "HIPOC" OR MIOPEN
     set(MIOPEN_KERNELS
         ${STATIC_COMPOSABLE_KERNEL_SOURCE}
         ${COMPOSABLE_KERNEL_SOURCE}
-        ${COMPOSABLE_KERNEL_DYNAMIC_ASM_SOURCE}
-        ${COMPOSABLE_KERNEL_DYNAMIC_CPP_SOURCE}
+        # ${COMPOSABLE_KERNEL_DYNAMIC_ASM_SOURCE}
+        # ${COMPOSABLE_KERNEL_DYNAMIC_CPP_SOURCE}
         ${GPU_REFERENCE_KERNEL_HIP}
         ${GPU_REFERENCE_KERNEL_ASM}
         ${GPU_BATCHED_TRANSPOSE_KERNEL_HIP}

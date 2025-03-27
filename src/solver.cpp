@@ -465,19 +465,19 @@ inline SolverRegistrar::SolverRegistrar(IdRegistryData& registry)
     RegisterWithSolver(
         registry, ++id, conv::ConvMPBidirectWinograd<6, 3>{}, miopenConvolutionAlgoWinograd);
 
-    RegisterWithSolver(registry,
-                       ++id,
-                       conv::ConvAsmImplicitGemmGTCDynamicWrwXdlops{},
-                       miopenConvolutionAlgoImplicitGEMM);
+    // RegisterWithSolver(registry,
+    //                    ++id,
+    //                    conv::ConvAsmImplicitGemmGTCDynamicWrwXdlops{},
+    //                    miopenConvolutionAlgoImplicitGEMM);
     RegisterWithSolver(registry,
                        ++id,
                        conv::ConvHipImplicitGemmWrwV4R4Xdlops{},
                        miopenConvolutionAlgoImplicitGEMM);
 
-    RegisterWithSolver(registry,
-                       ++id,
-                       conv::ConvAsmImplicitGemmGTCDynamicFwdXdlops{},
-                       miopenConvolutionAlgoImplicitGEMM);
+    // RegisterWithSolver(registry,
+    //                    ++id,
+    //                    conv::ConvAsmImplicitGemmGTCDynamicFwdXdlops{},
+    //                    miopenConvolutionAlgoImplicitGEMM);
 
     RegisterWithSolver(
         registry, ++id, conv::ConvMPBidirectWinograd_xdlops<2, 3>{}, miopenConvolutionAlgoWinograd);
@@ -500,10 +500,10 @@ inline SolverRegistrar::SolverRegistrar(IdRegistryData& registry)
                        conv::ConvHipImplicitGemmForwardV4R4Xdlops_Padded_Gemm{},
                        miopenConvolutionAlgoImplicitGEMM);
 
-    RegisterWithSolver(registry,
-                       ++id,
-                       conv::ConvAsmImplicitGemmGTCDynamicBwdXdlops{},
-                       miopenConvolutionAlgoImplicitGEMM);
+    // RegisterWithSolver(registry,
+    //                    ++id,
+    //                    conv::ConvAsmImplicitGemmGTCDynamicBwdXdlops{},
+    //                    miopenConvolutionAlgoImplicitGEMM);
     RegisterWithSolver(registry,
                        ++id,
                        conv::ConvHipImplicitGemmWrwV4R4Xdlops_Padded_Gemm{},
@@ -544,20 +544,20 @@ inline SolverRegistrar::SolverRegistrar(IdRegistryData& registry)
 
     Register(registry, ++id, Primitive::Activation, activ::ActivFwdSolver0{}.SolverDbId());
 
-    RegisterWithSolver(registry,
-                       ++id,
-                       conv::ConvAsmImplicitGemmGTCDynamicFwdXdlopsNHWC{},
-                       miopenConvolutionAlgoImplicitGEMM);
-    RegisterWithSolver(registry,
-                       ++id,
-                       conv::ConvAsmImplicitGemmGTCDynamicBwdXdlopsNHWC{},
-                       miopenConvolutionAlgoImplicitGEMM);
+    // RegisterWithSolver(registry,
+    //                    ++id,
+    //                    conv::ConvAsmImplicitGemmGTCDynamicFwdXdlopsNHWC{},
+    //                    miopenConvolutionAlgoImplicitGEMM);
+    // RegisterWithSolver(registry,
+    //                    ++id,
+    //                    conv::ConvAsmImplicitGemmGTCDynamicBwdXdlopsNHWC{},
+    //                    miopenConvolutionAlgoImplicitGEMM);
 
     Register(registry, ++id, Primitive::Activation, activ::ActivFwdSolver1{}.SolverDbId());
-    RegisterWithSolver(registry,
-                       ++id,
-                       conv::ConvAsmImplicitGemmGTCDynamicWrwXdlopsNHWC{},
-                       miopenConvolutionAlgoImplicitGEMM);
+    // RegisterWithSolver(registry,
+    //                    ++id,
+    //                    conv::ConvAsmImplicitGemmGTCDynamicWrwXdlopsNHWC{},
+    //                    miopenConvolutionAlgoImplicitGEMM);
 
     Register(registry, ++id, Primitive::Activation, activ::ActivBwdSolver0{}.SolverDbId());
     Register(registry, ++id, Primitive::Activation, activ::ActivBwdSolver1{}.SolverDbId());
@@ -587,10 +587,10 @@ inline SolverRegistrar::SolverRegistrar(IdRegistryData& registry)
     Register(registry, ++id, Primitive::Pooling, pooling::PoolingBackward2d{}.SolverDbId());
     Register(registry, ++id, Primitive::Pooling, pooling::PoolingBackwardNd{}.SolverDbId());
 
-    RegisterWithSolver(registry,
-                       ++id,
-                       conv::ConvAsmImplicitGemmGTCDynamicFwdDlopsNCHWC{},
-                       miopenConvolutionAlgoImplicitGEMM);
+    // RegisterWithSolver(registry,
+    //                    ++id,
+    //                    conv::ConvAsmImplicitGemmGTCDynamicFwdDlopsNCHWC{},
+    //                    miopenConvolutionAlgoImplicitGEMM);
     RegisterWithSolver(
         registry, ++id, conv::ConvHipImplicitGemmFwdXdlops{}, miopenConvolutionAlgoImplicitGEMM);
     RegisterWithSolver(
