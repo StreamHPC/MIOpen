@@ -52,6 +52,7 @@
 # python3 run_benchmarks.py --full-bench
 #
 
+import hashlib
 import argparse
 import os
 import sys
@@ -177,6 +178,12 @@ def benchmark_layer(layer: str, type: str, iters: int, out_dir: str, miopen_cmd:
                 run_result = subprocess.run(driver_command, capture_output=True, text=True, check=True)
                 parsed_run_result = parse_output(run_result.stdout)
                 runs_results.extend(parsed_run_result)
+                if args.log:
+                    params_hash = hashlib.md5(driver_command_str.encode()).hexdigest()[:8]
+                    out_file = f"{logs_out_dir}/log_{layer}{type}_{arch}_{params_hash}"
+                    with open(out_file, 'w') as f:
+                        print(f"{run_result.stderr}\n{driver_command_str}", file=f)
+                    break
             # Compute metrics (arithmetic mean, standard deviation)
             df = pd.DataFrame(runs_results)
             averaged_result = df.groupby('layer').agg(['mean', 'std'])
@@ -232,6 +239,7 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--full-bench', action='store_true', help='Run full benchmarking matrix')
     parser.add_argument('--incremental', action='store_true', help='Do not re-run benchmarks with existing results file')
     parser.add_argument('-l', '--layers', nargs='+', help='Space-separated list of layers to benchmark')
+    parser.add_argument('--log', action='store_true', help='Run in tuning mode by only storing logs and not gathering performance metrics')
     parser.add_argument('-ls', '--list', action='store_true', help='List available layers')
     parser.add_argument(
         '-o', '--out_dir', default=os.path.dirname(os.path.realpath(__file__)), help='Output directory, default to same as script\'s')
@@ -269,6 +277,11 @@ if __name__ == '__main__':
         for layer in args.layers:
             print(layer)
         quit()
+        
+    if args.log:
+        logs_out_dir=f'{os.path.dirname(os.path.realpath(__file__))}/logs'
+        os.makedirs(logs_out_dir, exist_ok=True)
+        log.info(f'Running in log mode. Logs stored in {logs_out_dir}')
 
     for layer, types_list in zip(args.layers, args.types):
         types = types_list.split(',')
