@@ -72,7 +72,7 @@ def make_2d_cmd(key):
         f"--in_h {param_vals['in_h']} --in_w {param_vals['in_w']} "
         f"--out_channels {param_vals['out_channels']} "
         f"--fil_h {param_vals['fil'][0]} --fil_w {param_vals['fil'][1]} "
-        f"--pad_h {param_vals['pad'][0]} --pad_h {param_vals['pad'][1]} "
+        f"--pad_h {param_vals['pad'][0]} --pad_w {param_vals['pad'][1]} "
         f"--conv_stride_h {param_vals['stride'][0]} --conv_stride_w {param_vals['stride'][1]} "
         f"--dilation_h {param_vals['dilation'][0]} --dilation_w {param_vals['dilation'][1]} "
         "--mode conv --group_count 1 "
@@ -85,6 +85,26 @@ def add_algo_entry(algo, provider, time, solver, algos_dict):
     if not curr_time or time < curr_time:
         algos_dict[algo][provider]['time'] = time
         algos_dict[algo][provider]['solver'] = solver
+
+def generate_json_entry(miopen_cmd_str, shape, arch, algo, conv_type, solver_name, time_ms):
+    return ({
+        'command': miopen_cmd_str,
+        'args': shape,
+        'device_arch': arch,
+        'algo': algo,
+        'results': [{
+            'layer': conv_type,
+            'solver_selected': solver_name,
+            'read_bytes_mean': 0.0,
+            'read_bytes_std': 0.0,
+            'write_bytes_mean': 0.0,
+            'write_bytes_std': 0.0,
+            'mem_bw_gbs_mean': 0.0,
+            'mem_bw_gbs_std': 0.0,
+            'time_ms_mean': time_ms,
+            'time_ms_std': 0.0
+        }],
+    })
 
 def process_2d(shape, solvers, misa_dict, ck_dict):
     global misa_percent
@@ -119,42 +139,8 @@ def process_2d(shape, solvers, misa_dict, ck_dict):
                 ck_count += 1
             miopen_cmd_str = make_2d_cmd(shape)
             conv_type = extract_conv_type(shape)
-            misa_data = {
-                'command': miopen_cmd_str,
-                'args': shape,
-                'device_arch': args.arch,
-                'algo': algo,
-                'results': [{
-                    'layer': conv_type,
-                    'solver_selected': misa_solver,
-                    'read_bytes_mean': 0.0,
-                    'read_bytes_std': 0.0,
-                    'write_bytes_mean': 0.0,
-                    'write_bytes_std': 0.0,
-                    'mem_bw_gbs_mean': 0.0,
-                    'mem_bw_gbs_std': 0.0,
-                    'time_ms_mean': misa_time,
-                    'time_ms_std': 0.0
-                }],
-            }
-            ck_data = {
-                'command': miopen_cmd_str,
-                'args': shape,
-                'device_arch': args.arch,
-                'algo': algo,
-                'results': [{
-                    'layer': conv_type,
-                    'solver_selected': ck_solver,
-                    'read_bytes_mean': 0.0,
-                    'read_bytes_std': 0.0,
-                    'write_bytes_mean': 0.0,
-                    'write_bytes_std': 0.0,
-                    'mem_bw_gbs_mean': 0.0,
-                    'mem_bw_gbs_std': 0.0,
-                    'time_ms_mean': ck_time,
-                    'time_ms_std': 0.0
-                }],
-            }
+            misa_data = generate_json_entry(miopen_cmd_str, shape, args.arch, algo, conv_type, misa_solver, misa_time)
+            ck_data = generate_json_entry(miopen_cmd_str, shape, args.arch, algo, conv_type, ck_solver, ck_time)
             misa_dict.append(misa_data)
             ck_dict.append(ck_data)
     else:
