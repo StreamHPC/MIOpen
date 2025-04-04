@@ -34,6 +34,15 @@ misa_count = 0
 ck_percent = 0
 ck_count = 0
 
+param_opts = [
+    "in_channels", "in_h", "in_w", "fil",
+    "out_channels", None, None, "batch_size",
+    "pad", "stride", "dilation", None,
+    "layout", None, "direction"
+]
+direction_dict = {"F": "--forw 1", "B": "--forw 2", "W": "--forw 4"}
+layout_dict = {"NCHW": "", "NHWC": " --in_layout NHWC --fil_layout NHWC --out_layout NHWC"}
+
 def extract_conv_type(key):
     data_type = key[13]
     if data_type == "FP32":
@@ -43,49 +52,33 @@ def extract_conv_type(key):
     if data_type == "BF16":
         conv_type = "convbfp16"
     return conv_type
-    
+
 def make_2d_cmd(key):
-    in_channels = key[0]
-    in_h = key[1]
-    in_w = key[2]
-    
-    weights = key[3].split("x")
-    weight_height = weights[0]
-    weight_width = weights[1]
-    
-    out_channels = key[4]
-    # 5 and 6 is in_h and in_w again
-    batch_size = key[7]
-    
-    padding = key[8].split("x")
-    pad_height = padding[0]
-    pad_width = padding[1]
-    
-    strides = key[9].split("x")
-    stride_height = strides[0]
-    stride_width = strides[1]
-    
-    dilations = key[10].split("x")
-    dilation_height = dilations[0]
-    dilation_width = dilations[1]
-    
-    layout = key[12]
+    param_vals = {}
+    for i, opt in enumerate(param_opts):
+        if opt:
+            param_vals[opt] = key[i]
+
+    for field in ["fil", "pad", "stride", "dilation"]:
+        if field in param_vals:
+            param_vals[field] = param_vals[field].split("x")
+
+    layout = layout_dict.get(param_vals["layout"], "")
     conv_type = extract_conv_type(key)
-    direction = key[14]
-
-    if direction == "F":
-        arg_dir = "-F 1"
-    if direction == "B":
-        arg_dir = "-F 2"
-    if direction == "W":
-        arg_dir = "-F 4"
-
-    if layout == "NCHW":
-        arg_layout = ""
-    if layout == "NHWC":
-        arg_layout = " --in_layout NHWC --fil_layout NHWC --out_layout NHWC"
-
-    return f"{args.miopen_cmd} {conv_type} -n {batch_size} -c {in_channels} -H {in_h} -W {in_w} -k {out_channels} -y {weight_height} -x {weight_width} -p {pad_height} -q {pad_width} -u {stride_height} -v {stride_width} -l {dilation_height} -j {dilation_width} {arg_dir}{arg_layout} $ARGS"
+    direction = direction_dict.get(param_vals["direction"], "-F 1")
+    return (
+        f"{args.miopen_cmd} {conv_type} "
+        f"--batchsize {param_vals['batch_size']} --in_channels {param_vals['in_channels']} "
+        f"--in_h {param_vals['in_h']} --in_w {param_vals['in_w']} "
+        f"--out_channels {param_vals['out_channels']} "
+        f"--fil_h {param_vals['fil'][0]} --fil_w {param_vals['fil'][1]} "
+        f"--pad_h {param_vals['pad'][0]} --pad_h {param_vals['pad'][1]} "
+        f"--conv_stride_h {param_vals['stride'][0]} --conv_stride_w {param_vals['stride'][1]} "
+        f"--dilation_h {param_vals['dilation'][0]} --dilation_w {param_vals['dilation'][1]} "
+        "--mode conv --group_count 1 "
+        f"{direction}{layout} "
+        "--time 1 "
+    )
 
 def add_algo_entry(algo, provider, time, solver, algos_dict):
     curr_time = algos_dict[algo][provider]['time']
@@ -164,7 +157,6 @@ def process_2d(shape, solvers, misa_dict, ck_dict):
             }
             misa_dict.append(misa_data)
             ck_dict.append(ck_data)
-            print(f"{miopen_cmd_str}\t{misa_time}\t{ck_time}\t{algo}")
     else:
         if(args.verbose):
             log.info(f'DB entry {shape}={solvers} doesn\'t contain both MISA and CK solvers for the same algo')
