@@ -27,7 +27,7 @@ import json
 import logging
 import rich.logging
 import rich.progress
-from typing import Dict
+from collections import defaultdict
 
 misa_percent = 0
 misa_count = 0
@@ -86,10 +86,10 @@ def add_algo_entry(algo, provider, time, solver, algos_dict):
         algos_dict[algo][provider]['time'] = time
         algos_dict[algo][provider]['solver'] = solver
 
-def generate_json_entry(miopen_cmd_str, shape, arch, algo, conv_type, solver_name, time_ms):
+def generate_json_entry(miopen_cmd_str, conv_args, arch, algo, conv_type, solver_name, time_ms):
     return ({
         'command': miopen_cmd_str,
-        'args': shape,
+        'args': conv_args,
         'device_arch': arch,
         'algo': algo,
         'results': [{
@@ -105,6 +105,15 @@ def generate_json_entry(miopen_cmd_str, shape, arch, algo, conv_type, solver_nam
             'time_ms_std': 0.0
         }],
     })
+
+def map_miopen_cmd_2_args(cmd):
+    cmd_comp = cmd.split()
+    conv_args = {
+        comp[2:]: int(value) if value.isdigit() else float(value) if value.replace('.', '', 1).isdigit() else value
+        for comp, value in zip(cmd_comp, cmd_comp[1:])
+        if comp.startswith('--')
+    }
+    return conv_args
 
 def process_2d(shape, solvers, misa_dict, ck_dict):
     global misa_percent
@@ -139,8 +148,9 @@ def process_2d(shape, solvers, misa_dict, ck_dict):
                 ck_count += 1
             miopen_cmd_str = make_2d_cmd(shape)
             conv_type = extract_conv_type(shape)
-            misa_data = generate_json_entry(miopen_cmd_str, shape, args.arch, algo, conv_type, misa_solver, misa_time)
-            ck_data = generate_json_entry(miopen_cmd_str, shape, args.arch, algo, conv_type, ck_solver, ck_time)
+            conv_args = map_miopen_cmd_2_args(miopen_cmd_str)
+            misa_data = generate_json_entry(miopen_cmd_str, conv_args, args.arch, algo, conv_type, misa_solver, misa_time)
+            ck_data = generate_json_entry(miopen_cmd_str, conv_args, args.arch, algo, conv_type, ck_solver, ck_time)
             misa_dict.append(misa_data)
             ck_dict.append(ck_data)
     else:
