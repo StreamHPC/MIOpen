@@ -34,9 +34,17 @@ misa_count = 0
 ck_percent = 0
 ck_count = 0
 
+# For forward convolution, we have:
+# in_channels-in_h-in_w-fil-out_channels-out_h-out_w-batch_size-pad-stride-dilation-?-layout-data_type-direction
+#
+# For backward and backward weights, however, we have:
+# out_channels-out_h-out_w-fil-in_channels-in_h-in_w-batch_size-pad-stride-dilation-?-layout-data_type-direction
+#
+# We define param_opts as for the forward convolution, and later exchange the in and out channels if we are processing
+# a backward or backward weights convolution entry.
 param_opts = [
     "in_channels", "in_h", "in_w", "fil",
-    "out_channels", None, None, "batch_size",
+    "out_channels", "out_h", "out_w", "batch_size",
     "pad", "stride", "dilation", None,
     "layout", None, "direction"
 ]
@@ -66,6 +74,20 @@ def make_2d_cmd(key):
     layout = layout_dict.get(param_vals["layout"], "")
     conv_type = extract_conv_type(key)
     direction = direction_dict.get(param_vals["direction"], "-F 1")
+    # If the entry is for a backward or backward weights convolution, in and out channels are exchanged
+    if param_vals["direction"] == 'B' or param_vals["direction"] == 'W':
+        out_channels = param_vals['in_channels']
+        out_h = param_vals['out_h']
+        out_w = param_vals['out_w']
+
+        param_vals['in_channels'] = param_vals['out_channels']
+        param_vals['in_h'] = param_vals['out_h']
+        param_vals['in_w'] = param_vals['out_w']
+
+        param_vals['out_channels'] = out_channels
+        param_vals['out_h'] = out_h
+        param_vals['out_w'] = out_w
+
     return (
         f"{args.miopen_cmd} {conv_type} "
         f"--batchsize {param_vals['batch_size']} --in_channels {param_vals['in_channels']} "
