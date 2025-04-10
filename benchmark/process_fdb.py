@@ -108,9 +108,10 @@ def add_algo_entry(algo, provider, time, solver, algos_dict):
         algos_dict[algo][provider]['time'] = time
         algos_dict[algo][provider]['solver'] = solver
 
-def generate_json_entry(miopen_cmd_str, conv_args, arch, algo, conv_type, solver_name, time_ms):
+def generate_json_entry(miopen_cmd_str, db_entry_key, conv_args, arch, algo, conv_type, solver_name, time_ms):
     return ({
         'command': miopen_cmd_str,
+        'finddb_key': db_entry_key,
         'args': conv_args,
         'device_arch': arch,
         'algo': algo,
@@ -137,7 +138,7 @@ def map_miopen_cmd_2_args(cmd):
     }
     return conv_args
 
-def process_2d(shape, solvers, misa_dict, ck_dict):
+def process_2d(shape, db_entry_key, solvers, misa_dict, ck_dict):
     global misa_percent
     global misa_count
     global ck_percent
@@ -165,16 +166,16 @@ def process_2d(shape, solvers, misa_dict, ck_dict):
             if misa_time < ck_time:
                 misa_percent += (ck_time - misa_time) / ck_time
                 misa_count += 1
+                miopen_cmd_str = make_2d_cmd(shape)
+                conv_type = extract_conv_type(shape)
+                conv_args = map_miopen_cmd_2_args(miopen_cmd_str)
+                misa_data = generate_json_entry(miopen_cmd_str, db_entry_key, conv_args, args.arch, algo, conv_type, misa_solver, misa_time)
+                ck_data = generate_json_entry(miopen_cmd_str, db_entry_key, conv_args, args.arch, algo, conv_type, ck_solver, ck_time)
+                misa_dict.append(misa_data)
+                ck_dict.append(ck_data)
             else:
                 ck_percent += (misa_time - ck_time) / misa_time
                 ck_count += 1
-            miopen_cmd_str = make_2d_cmd(shape)
-            conv_type = extract_conv_type(shape)
-            conv_args = map_miopen_cmd_2_args(miopen_cmd_str)
-            misa_data = generate_json_entry(miopen_cmd_str, conv_args, args.arch, algo, conv_type, misa_solver, misa_time)
-            ck_data = generate_json_entry(miopen_cmd_str, conv_args, args.arch, algo, conv_type, ck_solver, ck_time)
-            misa_dict.append(misa_data)
-            ck_dict.append(ck_data)
     else:
         if(args.verbose):
             log.info(f'DB entry {shape}={solvers} doesn\'t contain both MISA and CK solvers for the same algo')
@@ -185,7 +186,7 @@ def process_line(line, misa_dict, ck_dict):
     solvers = db_entry[1].split(";")
 
     if len(shape) == 15:
-        process_2d(shape, solvers, misa_dict, ck_dict)
+        process_2d(shape, db_entry[0], solvers, misa_dict, ck_dict)
     else:
         if(args.verbose):
             log.info(f'DB entry {db_entry} is not for 2D convolution')
