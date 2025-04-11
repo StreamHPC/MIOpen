@@ -105,22 +105,20 @@ static auto GetImplicitGemmSolvers()
         miopen::solver::conv::ConvAsmImplicitGemmV4R1DynamicFwd_1x1,
         miopen::solver::conv::ConvAsmImplicitGemmV4R1DynamicFwd,
         miopen::solver::conv::ConvAsmImplicitGemmV4R1DynamicBwd,
-        // miopen::solver::conv::ConvAsmImplicitGemmGTCDynamicFwdXdlops,
-        // miopen::solver::conv::ConvAsmImplicitGemmGTCDynamicBwdXdlops,
-        // miopen::solver::conv::ConvAsmImplicitGemmGTCDynamicFwdXdlopsNHWC,
-        // miopen::solver::conv::ConvAsmImplicitGemmGTCDynamicBwdXdlopsNHWC,
-        miopen::solver::conv::ConvCkIgemmFwdV6r1DlopsNchw
+        miopen::solver::conv::ConvAsmImplicitGemmGTCDynamicFwdXdlops,
+        miopen::solver::conv::ConvAsmImplicitGemmGTCDynamicBwdXdlops,
+        miopen::solver::conv::ConvAsmImplicitGemmGTCDynamicFwdXdlopsNHWC,
+        miopen::solver::conv::ConvAsmImplicitGemmGTCDynamicBwdXdlopsNHWC,
+        miopen::solver::conv::ConvCkIgemmFwdV6r1DlopsNchw,
 #if MIOPEN_BACKEND_HIP && MIOPEN_USE_COMPOSABLEKERNEL
-        ,
         miopen::solver::conv::ConvHipImplicitGemmFwdXdlops,
         miopen::solver::conv::ConvHipImplicitGemmBwdXdlops,
         miopen::solver::conv::ConvHipImplicitGemmGroupFwdXdlops,
         miopen::solver::conv::ConvHipImplicitGemmGroupBwdXdlops,
         miopen::solver::conv::ConvHipImplicitGemm3DGroupFwdXdlops,
-        miopen::solver::conv::ConvHipImplicitGemm3DGroupBwdXdlops
+        miopen::solver::conv::ConvHipImplicitGemm3DGroupBwdXdlops,
 #endif // MIOPEN_BACKEND_HIP && MIOPEN_USE_COMPOSABLEKERNEL
-        // miopen::solver::conv::ConvAsmImplicitGemmGTCDynamicFwdDlopsNCHWC
-        >{};
+        miopen::solver::conv::ConvAsmImplicitGemmGTCDynamicFwdDlopsNCHWC>{};
 }
 
 static auto GetWindogradSolvers()
@@ -153,15 +151,13 @@ static auto GetImplicitGemmWrWSolvers()
         miopen::solver::conv::ConvHipImplicitGemmV4R4WrW,
         miopen::solver::conv::ConvAsmImplicitGemmV4R1DynamicWrw,
         miopen::solver::conv::ConvMlirIgemmWrWXdlops,
-        miopen::solver::conv::ConvMlirIgemmWrW
-        // miopen::solver::conv::ConvAsmImplicitGemmGTCDynamicWrwXdlops,
+        miopen::solver::conv::ConvMlirIgemmWrW,
+        miopen::solver::conv::ConvAsmImplicitGemmGTCDynamicWrwXdlops,
 #if MIOPEN_BACKEND_HIP && MIOPEN_USE_COMPOSABLEKERNEL
-        ,
         miopen::solver::conv::ConvHipImplicitGemmGroupWrwXdlops,
-        miopen::solver::conv::ConvHipImplicitGemm3DGroupWrwXdlops
+        miopen::solver::conv::ConvHipImplicitGemm3DGroupWrwXdlops,
 #endif // MIOPEN_BACKEND_HIP && MIOPEN_USE_COMPOSABLEKERNEL
-        // miopen::solver::conv::ConvAsmImplicitGemmGTCDynamicWrwXdlopsNHWC
-        >{};
+        miopen::solver::conv::ConvAsmImplicitGemmGTCDynamicWrwXdlopsNHWC>{};
 }
 
 static auto GetWindogradWrWSolvers()
