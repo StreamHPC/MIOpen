@@ -230,6 +230,8 @@ if __name__ == '__main__':
         with open(args.fdb_path, "r") as fdb:
             log.info(f'Processing {args.fdb_path} file for {args.arch}')
             process_fdb(fdb)
+            print(f'MISA time diff %: {misa_percent} ({misa_count}/{misa_count+ck_count})')
+            print(f'CK time diff %: {ck_percent} ({ck_count}/{misa_count+ck_count})')
     except Exception as e:
         log.error(f'Could not process fdb file {args.fdb_path}: {e}')
         sys.exit(1)
