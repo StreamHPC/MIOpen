@@ -83,7 +83,11 @@ def parse_output(output: str) -> List[Dict[str, Any]]:
         GPU Kernel Time <layer> Elapsed: <time> ms
     '''
     results = []
+    solution_regex = r'Solution:\s*(?P<solution_id>\d+)/(?P<solution_name>\S+)'
     stats_regex = r'stdstats:\s*(?P<layer>\S+),\s*(?P<read_bytes>\d+),\s*(?P<write_bytes>\d+),\s*(?P<mem_bw_gbs>[\d\.]+),\s*(?P<time_ms>[\d\.]+)'
+
+    solution_match = re.search(solution_regex, output)
+    solution = f"{solution_match.group('solution_id')}/{solution_match.group('solution_name')}"
 
     # Some layers report more than one stdstats (e.g. fwd, bwdd, bwdw)
     stats_matches = re.finditer(stats_regex, output)
@@ -98,6 +102,7 @@ def parse_output(output: str) -> List[Dict[str, Any]]:
             'read_bytes': read_bytes,
             'write_bytes': write_bytes,
             'mem_bw_gbs': mem_bw_gbs,
+            'solution': solution,
             'time_ms': time_ms
         })
     return results
@@ -186,7 +191,7 @@ def benchmark_layer(layer: str, type: str, iters: int, out_dir: str, miopen_cmd:
                     break
             # Compute metrics (arithmetic mean, standard deviation)
             df = pd.DataFrame(runs_results)
-            averaged_result = df.groupby('layer').agg(['mean', 'std'])
+            averaged_result = df.groupby(['layer', 'solution']).agg(['mean', 'std'])
             # Flatten metrics, stddev is reported in % with respect to the mean
             averaged_result.columns = ['_'.join(col) for col in averaged_result.columns]
             averaged_result = averaged_result.reset_index()
