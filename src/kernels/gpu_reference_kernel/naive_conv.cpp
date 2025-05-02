@@ -106,6 +106,68 @@ inline __device__ __host__ bool IsZero(double val) { return val == 0.0; }
 
 inline __device__ __host__ bool IsOne(double val) { return val == 1.0; }
 
+// Fallback to scalar (int8_t, half, ...)
+template <typename T, int N>
+struct mapped_vector_type
+{
+    using type = T;
+};
+
+// Use vector formats supported by HIP when possible
+template <>
+struct mapped_vector_type<float, 4>
+{
+    using type = float4;
+};
+
+template <>
+struct mapped_vector_type<float, 2>
+{
+    using type = float2;
+};
+
+template <>
+struct mapped_vector_type<float, 1>
+{
+    using type = float;
+};
+
+template <>
+struct mapped_vector_type<ushort, 4>
+{
+    using type = ushort4;
+};
+
+template <>
+struct mapped_vector_type<ushort, 2>
+{
+    using type = ushort2;
+};
+
+template <>
+struct mapped_vector_type<ushort, 1>
+{
+    using type = ushort;
+};
+
+template <>
+struct mapped_vector_type<int32_t, 4>
+{
+    using type = int4;
+};
+
+template <>
+struct mapped_vector_type<int32_t, 2>
+{
+    using type = int2;
+};
+
+template <>
+struct mapped_vector_type<int32_t, 1>
+{
+    using type = int;
+};
+
 template <typename dst_data_t, typename acc_data_t>
 inline __device__ void applyalphaBetaUpdate(dst_data_t* __restrict__ p_array,
                                             const acc_data_t value,
@@ -123,6 +185,43 @@ inline __device__ void applyalphaBetaUpdate(dst_data_t* __restrict__ p_array,
         cast_to<double, acc_data_t>(alpha) * value +
         cast_to<dst_data_t, acc_data_t>(p_array[index]) * cast_to<double, acc_data_t>(beta);
     p_array[index] = cast_to<acc_data_t, dst_data_t>(val_alpha_beta);
+}
+
+template <typename dst_data_t, typename acc_data_t, typename vec_t, int vec_width>
+inline __device__ void applyalphaBetaUpdateVector(dst_data_t* __restrict__ p_array,
+                                                  acc_data_t (&value_vec)[vec_width],
+                                                  double alpha,
+                                                  double beta,
+                                                  size_t index)
+{
+    dst_data_t tmp_vec[vec_width];
+
+#pragma unroll
+    for(int i = 0; i < vec_width; ++i)
+    {
+        acc_data_t acc_val = value_vec[i];
+
+        if(IsOne(alpha) && IsZero(beta))
+        {
+            tmp_vec[i] = cast_to<acc_data_t, dst_data_t>(acc_val);
+        }
+        else
+        {
+            acc_data_t val_alpha_beta =
+                cast_to<double, acc_data_t>(alpha) * acc_val +
+                cast_to<dst_data_t, acc_data_t>(p_array[index]) * cast_to<double, acc_data_t>(beta);
+            tmp_vec[i] = cast_to<acc_data_t, dst_data_t>(val_alpha_beta);
+        }
+    }
+
+    vec_t result;
+#pragma unroll
+    for(int i = 0; i < vec_width; ++i)
+    {
+        reinterpret_cast<dst_data_t*>(&result)[i] = tmp_vec[i];
+    }
+
+    *reinterpret_cast<vec_t*>(p_array + index) = result;
 }
 
 /// \todo remove template parameter 'bool ASSUME_PACKED' in a follow up PR
@@ -1065,6 +1164,8 @@ inline __device__ void naive_conv_fwd_nhwc(const src_data_t* __restrict__ p_in,
      *  hence need `n * ho` workgroups (grid_size).
      */
 
+    using vec_t = typename mapped_vector_type<dst_data_t, vec_width>::type;
+
     int k             = k_per_group * group;
     int c             = c_per_group * group;
     int thread_length = wo * k;
@@ -1086,7 +1187,10 @@ inline __device__ void naive_conv_fwd_nhwc(const src_data_t* __restrict__ p_in,
             static_cast<size_t>(in) * out_strides[4] + static_cast<size_t>(iho) * out_strides[3];
     }
 
-    for(int tid = threadIdx.x; tid < thread_length; tid += blockDim.x)
+    // Compute vectorizable output elements.
+    const int thread_vecs      = thread_length / vec_width;
+    const int k_vecs_per_block = k / vec_width;
+    for(int tid = threadIdx.x; tid < thread_vecs; tid += blockDim.x)
     {
         // We want to compute
         //      iwo = tid / k
@@ -1094,12 +1198,13 @@ inline __device__ void naive_conv_fwd_nhwc(const src_data_t* __restrict__ p_in,
         // , but
         //      tid = tid / k * k + tid % k = iwo * k + ik
         // so we can avoid the % operation.
-        int iwo       = tid / k;
-        int global_ik = tid - iwo * k;
-        int ig        = global_ik / k_per_group;
-        int ik        = global_ik - ig * k_per_group;
+        const int base_offset = tid * vec_width;
+        const int iwo         = base_offset / k;
+        const int global_ik   = base_offset - iwo * k;
+        int ig                = global_ik / k_per_group;
+        int ik                = global_ik - ig * k_per_group;
 
-        acc_data_t value = 0;
+        acc_data_t value_vec[vec_width] = {0};
 
         for(int iy = 0; iy < fy; iy++)
         {
@@ -1123,15 +1228,19 @@ inline __device__ void naive_conv_fwd_nhwc(const src_data_t* __restrict__ p_in,
                                            static_cast<size_t>(cur_w) * c +
                                            static_cast<size_t>(ig) * c_per_group +
                                            static_cast<size_t>(ic);
+                            const auto i_el = cast_to<src_data_t, acc_data_t>(p_in[i_idx]);
 
-                            size_t f_idx =
-                                static_cast<size_t>(ig) * k_per_group * fy * fx * c_per_group +
-                                static_cast<size_t>(ik) * fy * fx * c_per_group +
-                                static_cast<size_t>(iy) * fx * c_per_group +
-                                static_cast<size_t>(ix) * c_per_group + static_cast<size_t>(ic);
+                            for(int v = 0; v < vec_width; ++v)
+                            {
+                                size_t f_idx =
+                                    static_cast<size_t>(ig) * k_per_group * fy * fx * c_per_group +
+                                    static_cast<size_t>(ik + v) * fy * fx * c_per_group +
+                                    static_cast<size_t>(iy) * fx * c_per_group +
+                                    static_cast<size_t>(ix) * c_per_group + static_cast<size_t>(ic);
 
-                            value += cast_to<src_data_t, acc_data_t>(p_in[i_idx]) *
-                                     cast_to<src_data_t, acc_data_t>(p_wei[f_idx]);
+                                value_vec[v] +=
+                                    i_el * cast_to<src_data_t, acc_data_t>(p_wei[f_idx]);
+                            }
                         }
                         else
                         {
@@ -1139,15 +1248,19 @@ inline __device__ void naive_conv_fwd_nhwc(const src_data_t* __restrict__ p_in,
                                            static_cast<size_t>(cur_w) * in_strides[2] +
                                            static_cast<size_t>(ig) * in_strides[1] +
                                            static_cast<size_t>(ic) * in_strides[0];
+                            const auto i_el = cast_to<src_data_t, acc_data_t>(p_in[i_idx]);
 
-                            size_t f_idx = static_cast<size_t>(ig) * wei_strides[4] +
-                                           static_cast<size_t>(ik) * wei_strides[3] +
-                                           static_cast<size_t>(iy) * wei_strides[2] +
-                                           static_cast<size_t>(ix) * wei_strides[1] +
-                                           static_cast<size_t>(ic) * wei_strides[0];
+                            for(int v = 0; v < vec_width; ++v)
+                            {
+                                size_t f_idx = static_cast<size_t>(ig) * wei_strides[4] +
+                                               static_cast<size_t>(ik + v) * wei_strides[3] +
+                                               static_cast<size_t>(iy) * wei_strides[2] +
+                                               static_cast<size_t>(ix) * wei_strides[1] +
+                                               static_cast<size_t>(ic) * wei_strides[0];
 
-                            value += cast_to<src_data_t, acc_data_t>(p_in[i_idx]) *
-                                     cast_to<src_data_t, acc_data_t>(p_wei[f_idx]);
+                                value_vec[v] +=
+                                    i_el * cast_to<src_data_t, acc_data_t>(p_wei[f_idx]);
+                            }
                         }
                     }
                 }
@@ -1158,14 +1271,16 @@ inline __device__ void naive_conv_fwd_nhwc(const src_data_t* __restrict__ p_in,
         {
             size_t o_idx = static_cast<size_t>(iwo) * k + static_cast<size_t>(ig) * k_per_group +
                            static_cast<size_t>(ik);
-            applyalphaBetaUpdate<dst_data_t, acc_data_t>(p_out, value, alpha, beta, o_idx);
+            applyalphaBetaUpdateVector<dst_data_t, acc_data_t, vec_t, vec_width>(
+                p_out, value_vec, alpha, beta, o_idx);
         }
         else
         {
             size_t o_idx = static_cast<size_t>(iwo) * out_strides[2] +
                            static_cast<size_t>(ig) * out_strides[1] +
                            static_cast<size_t>(ik) * out_strides[0];
-            applyalphaBetaUpdate<dst_data_t, acc_data_t>(p_out, value, alpha, beta, o_idx);
+            applyalphaBetaUpdateVector<dst_data_t, acc_data_t, vec_t, vec_width>(
+                p_out, value_vec, alpha, beta, o_idx);
         }
     }
 }
