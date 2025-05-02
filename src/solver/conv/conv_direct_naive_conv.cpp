@@ -167,6 +167,41 @@ std::string ConvDirectNaiveConvKernelName(const ProblemDescription& problem)
         MIOPEN_THROW("unsupported tensor layout");
     }
 
+    // Check if writes can be vectorized for NHWC layout
+    if(problem.IsLayoutNHWC())
+    {
+        int depth = 1;
+        if(problem.IsDirectionForward())
+        {
+            depth = ProblemInterpreter::GetOutputChannelK(problem);
+        }
+        else if(problem.IsDirectionBackwardData())
+        {
+            depth = ProblemInterpreter::GetInputChannelC(problem);
+        }
+
+        if(depth % 4 == 0)
+        {
+            kernel_name << "4_";
+        }
+        else if(depth % 3 == 0)
+        {
+            kernel_name << "3_";
+        }
+        else if(depth % 2 == 0)
+        {
+            kernel_name << "2_";
+        }
+        else
+        {
+            kernel_name << "1_";
+        }
+    }
+    else
+    {
+        kernel_name << "1_";
+    }
+
     if(problem.IsFp8() || problem.IsTensorsCasted() || problem.IsBfp8())
     {
         kernel_name << miopen::GetDataType(ProblemInterpreter::GetInputDataType(problem));
